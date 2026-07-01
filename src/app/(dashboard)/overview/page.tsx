@@ -27,19 +27,64 @@ import { useStore } from "@/lib/mock/store"
 import { useKybStatus } from "@/lib/hooks/useKybStatus"
 import StatusBadge from "@/components/shared/StatusBadge"
 import { cn } from "@/lib/utils"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 
 type DateFilter = "today" | "this_week" | "this_month" | "last_3_months"
-
-const DATE_FILTERS: { value: DateFilter; label: string }[] = [
-  { value: "today", label: "Today" },
-  { value: "this_week", label: "This Week" },
-  { value: "this_month", label: "This Month" },
-  { value: "last_3_months", label: "Last 3 Months" },
-]
 
 interface ChartPoint {
   label: string
   amount: number
+}
+
+const CHART_DATA: Record<DateFilter, ChartPoint[]> = {
+  today: [
+    { label: "8am", amount: 2000 },
+    { label: "9am", amount: 5500 },
+    { label: "10am", amount: 8000 },
+    { label: "11am", amount: 12000 },
+    { label: "12pm", amount: 18000 },
+    { label: "1pm", amount: 15000 },
+    { label: "2pm", amount: 11000 },
+    { label: "3pm", amount: 9000 },
+    { label: "4pm", amount: 14000 },
+    { label: "5pm", amount: 7500 },
+    { label: "6pm", amount: 4000 },
+    { label: "7pm", amount: 3000 },
+  ],
+  this_week: [
+    { label: "Mon", amount: 45000 },
+    { label: "Tue", amount: 62000 },
+    { label: "Wed", amount: 85000 },
+    { label: "Thu", amount: 38000 },
+    { label: "Fri", amount: 71000 },
+    { label: "Sat", amount: 25000 },
+    { label: "Sun", amount: 8000 },
+  ],
+  this_month: [
+    { label: "Week 1", amount: 280000 },
+    { label: "Week 2", amount: 380000 },
+    { label: "Week 3", amount: 120000 },
+    { label: "Week 4", amount: 210000 },
+  ],
+  last_3_months: [
+    { label: "April", amount: 820000 },
+    { label: "May", amount: 1100000 },
+    { label: "June", amount: 1400000 },
+  ],
 }
 
 function getDateRange(filter: DateFilter): { start: Date; end: Date } {
@@ -63,99 +108,15 @@ function getDateRange(filter: DateFilter): { start: Date; end: Date } {
   return { start, end: now }
 }
 
-function getChartData(
-  filter: DateFilter,
-  transactions: { createdAt: string; amount: number; status: string; type: string }[]
-): ChartPoint[] {
-  const successful = transactions.filter(
-    (t) => t.status === "successful" && t.type !== "refund"
-  )
-
-  if (filter === "today") {
-    return [6, 8, 10, 12, 14, 16, 18, 20, 22].map((hour) => ({
-      label: `${hour}:00`,
-      amount: successful
-        .filter((t) => {
-          const d = new Date(t.createdAt)
-          const now = new Date()
-          return (
-            d.getFullYear() === now.getFullYear() &&
-            d.getMonth() === now.getMonth() &&
-            d.getDate() === now.getDate() &&
-            d.getHours() >= hour &&
-            d.getHours() < hour + 2
-          )
-        })
-        .reduce((s, t) => s + t.amount, 0),
-    }))
-  }
-
-  if (filter === "this_week") {
-    const now = new Date()
-    const day = now.getDay()
-    const diffToMon = day === 0 ? 6 : day - 1
-    const monDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diffToMon)
-    const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    return DAY_LABELS.map((label, i) => {
-      const d = new Date(monDate)
-      d.setDate(monDate.getDate() + i)
-      return {
-        label,
-        amount: successful
-          .filter((t) => {
-            const td = new Date(t.createdAt)
-            return (
-              td.getFullYear() === d.getFullYear() &&
-              td.getMonth() === d.getMonth() &&
-              td.getDate() === d.getDate()
-            )
-          })
-          .reduce((s, t) => s + t.amount, 0),
-      }
-    })
-  }
-
-  if (filter === "this_month") {
-    const now = new Date()
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
-    const numWeeks = Math.ceil(daysInMonth / 7)
-    return Array.from({ length: numWeeks }, (_, i) => {
-      const weekStart = i * 7 + 1
-      const weekEnd = Math.min((i + 1) * 7, daysInMonth)
-      return {
-        label: `Week ${i + 1}`,
-        amount: successful
-          .filter((t) => {
-            const td = new Date(t.createdAt)
-            return (
-              td.getFullYear() === now.getFullYear() &&
-              td.getMonth() === now.getMonth() &&
-              td.getDate() >= weekStart &&
-              td.getDate() <= weekEnd
-            )
-          })
-          .reduce((s, t) => s + t.amount, 0),
-      }
-    })
-  }
-
-  const now = new Date()
-  return [-2, -1, 0].map((offset) => {
-    const d = new Date(now.getFullYear(), now.getMonth() + offset, 1)
-    return {
-      label: d.toLocaleString("default", { month: "short" }),
-      amount: successful
-        .filter((t) => {
-          const td = new Date(t.createdAt)
-          return td.getFullYear() === d.getFullYear() && td.getMonth() === d.getMonth()
-        })
-        .reduce((s, t) => s + t.amount, 0),
-    }
-  })
+function getGreeting(): string {
+  const hour = new Date().getHours()
+  if (hour >= 5 && hour < 12) return "Good morning"
+  if (hour >= 12 && hour < 17) return "Good afternoon"
+  return "Good evening"
 }
 
 function formatNaira(amount: number): string {
-  return "\u20a6" + amount.toLocaleString("en-NG")
+  return "₦" + amount.toLocaleString("en-NG")
 }
 
 interface StatCardProps {
@@ -163,10 +124,9 @@ interface StatCardProps {
   value: string | number
   icon: LucideIcon
   locked: boolean
-  trend?: string
 }
 
-function StatCard({ label, value, icon: Icon, locked, trend }: StatCardProps) {
+function StatCard({ label, value, icon: Icon, locked }: StatCardProps) {
   return (
     <div
       className={cn(
@@ -180,16 +140,13 @@ function StatCard({ label, value, icon: Icon, locked, trend }: StatCardProps) {
           {locked ? (
             <Lock className="size-4 text-muted-foreground" />
           ) : (
-            <Icon className="size-4 text-primary" />
+            <Icon className="size-4 text-muted-foreground" />
           )}
         </div>
       </div>
-      <p className="text-2xl font-semibold tracking-tight text-foreground">
-        {locked ? "\u2014" : value}
+      <p className="font-[family-name:var(--font-jakarta)] text-2xl font-bold tabular-nums text-foreground">
+        {locked ? "—" : value}
       </p>
-      {trend && !locked && (
-        <p className="mt-1 text-xs text-muted-foreground">{trend}</p>
-      )}
     </div>
   )
 }
@@ -211,11 +168,11 @@ function QuickAction({ label, description, icon: Icon, onClick, locked }: QuickA
         locked && "cursor-not-allowed opacity-60"
       )}
     >
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
         {locked ? (
-          <Lock className="size-4 text-primary/60" />
+          <Lock className="size-[18px] text-foreground" />
         ) : (
-          <Icon className="size-4 text-primary" />
+          <Icon className="size-[18px] text-foreground" />
         )}
       </div>
       <div>
@@ -291,11 +248,6 @@ export default function OverviewPage() {
     [customerSubscriptions]
   )
 
-  const chartData = useMemo(
-    () => getChartData(dateFilter, transactions),
-    [dateFilter, transactions]
-  )
-
   const recentOrders = useMemo(
     () =>
       [...orders]
@@ -303,6 +255,9 @@ export default function OverviewPage() {
         .slice(0, 5),
     [orders]
   )
+
+  const chartData = CHART_DATA[dateFilter]
+  const greeting = getGreeting()
 
   function handleLockedAction() {
     toast.warning("Verification required", {
@@ -312,64 +267,39 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-6">
+      {/* Header row */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-[family-name:var(--font-jakarta)] text-xl font-semibold text-foreground">
-            Good morning
+            {greeting}
           </h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
             Here&apos;s what&apos;s happening with your laundry business.
           </p>
         </div>
 
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-1">
-          {DATE_FILTERS.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setDateFilter(f.value)}
-              className={cn(
-                "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-                dateFilter === f.value
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
+        <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilter)}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="today">Today</SelectItem>
+            <SelectItem value="this_week">This Week</SelectItem>
+            <SelectItem value="this_month">This Month</SelectItem>
+            <SelectItem value="last_3_months">Last 3 Months</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
+      {/* Stat cards */}
       <div className="grid grid-cols-4 gap-4">
-        <StatCard
-          label="Total Revenue"
-          value={formatNaira(totalRevenue)}
-          icon={TrendingUp}
-          locked={locked}
-        />
-        <StatCard
-          label="Active Orders"
-          value={activeOrders}
-          icon={Package}
-          locked={locked}
-          trend={`${activeOrders} order${activeOrders !== 1 ? "s" : ""} in progress`}
-        />
-        <StatCard
-          label="Completed Orders"
-          value={completedOrders}
-          icon={CheckCircle2}
-          locked={locked}
-          trend={completedOrders === 0 ? "None in this period" : undefined}
-        />
-        <StatCard
-          label="Active Subscribers"
-          value={activeSubscribers}
-          icon={Users}
-          locked={locked}
-          trend={`${activeSubscribers} active plan${activeSubscribers !== 1 ? "s" : ""}`}
-        />
+        <StatCard label="Total Revenue" value={formatNaira(totalRevenue)} icon={TrendingUp} locked={locked} />
+        <StatCard label="Active Orders" value={activeOrders} icon={Package} locked={locked} />
+        <StatCard label="Completed Orders" value={completedOrders} icon={CheckCircle2} locked={locked} />
+        <StatCard label="Active Subscribers" value={activeSubscribers} icon={Users} locked={locked} />
       </div>
 
+      {/* Chart + Quick Actions */}
       <div className="grid grid-cols-3 gap-4">
         <div className="col-span-2 rounded-xl border border-border bg-background p-5">
           <div className="mb-4">
@@ -390,8 +320,16 @@ export default function OverviewPage() {
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={chartData} barSize={28}>
-                <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
+              <BarChart
+                data={chartData}
+                barSize={28}
+                margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
+              >
+                <CartesianGrid
+                  vertical={false}
+                  strokeDasharray="3 3"
+                  stroke="var(--border)"
+                />
                 <XAxis
                   dataKey="label"
                   axisLine={false}
@@ -402,10 +340,19 @@ export default function OverviewPage() {
                   axisLine={false}
                   tickLine={false}
                   tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                  tickFormatter={(v: number) => (v >= 1000 ? `\u20a6${v / 1000}k` : `\u20a6${v}`)}
-                  width={48}
+                  tickFormatter={(v: number) =>
+                    v >= 1000000
+                      ? `₦${v / 1000000}m`
+                      : v >= 1000
+                      ? `₦${v / 1000}k`
+                      : `₦${v}`
+                  }
+                  width={52}
                 />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--muted)", radius: 4 }} />
+                <Tooltip
+                  content={<CustomTooltip />}
+                  cursor={{ fill: "var(--muted)" }}
+                />
                 <Bar dataKey="amount" fill="var(--primary)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -440,6 +387,7 @@ export default function OverviewPage() {
         </div>
       </div>
 
+      {/* Recent Orders */}
       <div className="rounded-xl border border-border bg-background">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h3 className="text-sm font-semibold text-foreground">Recent Orders</h3>
@@ -459,31 +407,55 @@ export default function OverviewPage() {
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-border">
-            {recentOrders.map((order) => (
-              <div
-                key={order.id}
-                className="flex items-center justify-between px-5 py-4"
-              >
-                <div>
-                  <p className="text-sm font-medium text-foreground">{order.reference}</p>
-                  <p className="text-xs text-muted-foreground">{order.customerName}</p>
-                </div>
-                <div className="flex items-center gap-6">
-                  <span className="text-sm font-medium text-foreground">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-2/5 pl-5 pr-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Order ID
+                </TableHead>
+                <TableHead className="w-1/5 px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Customer
+                </TableHead>
+                <TableHead className="w-1/5 px-4 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Amount
+                </TableHead>
+                <TableHead className="w-1/10 px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Status
+                </TableHead>
+                <TableHead className="w-1/10 pl-4 pr-5 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Date
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {recentOrders.map((order) => (
+                <TableRow
+                  key={order.id}
+                  className="cursor-pointer transition-colors hover:bg-muted/50"
+                  onClick={() => router.push(`/orders/${order.id}`)}
+                >
+                  <TableCell className="pl-5 pr-4 text-sm font-medium text-foreground">
+                    {order.reference}
+                  </TableCell>
+                  <TableCell className="px-4 text-sm text-muted-foreground">
+                    {order.customerName}
+                  </TableCell>
+                  <TableCell className="px-4 text-right text-sm font-medium text-foreground">
                     {formatNaira(order.totalAmount)}
-                  </span>
-                  <StatusBadge status={order.status} />
-                  <span className="w-20 text-right text-xs text-muted-foreground">
+                  </TableCell>
+                  <TableCell className="px-4">
+                    <StatusBadge status={order.status} />
+                  </TableCell>
+                  <TableCell className="pl-4 pr-5 text-right text-sm text-muted-foreground">
                     {new Date(order.createdAt).toLocaleDateString("en-NG", {
                       month: "short",
                       day: "numeric",
                     })}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
       </div>
     </div>
