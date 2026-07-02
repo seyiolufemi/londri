@@ -86,7 +86,7 @@ function Step1({ formData, onChange, errors, clearError }: StepProps) {
         Tell us about your business
       </h2>
       <p className="mb-6 mt-1 text-sm text-muted-foreground">
-        We'll use this to verify your business registration.
+        We&apos;ll use this to verify your business registration.
       </p>
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
@@ -198,8 +198,8 @@ function Step2({ formData, onChange, errors, clearError, onIdDocumentChange }: S
             <SelectContent position="popper">
               <SelectItem value="nin-slip">NIN Slip</SelectItem>
               <SelectItem value="passport">International Passport</SelectItem>
-              <SelectItem value="drivers-license">Driver's License</SelectItem>
-              <SelectItem value="voters-card">Voter's Card</SelectItem>
+              <SelectItem value="drivers-license">Driver&apos;s License</SelectItem>
+              <SelectItem value="voters-card">Voter&apos;s Card</SelectItem>
             </SelectContent>
           </Select>
           <FieldError message={errors.idType} />
