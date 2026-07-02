@@ -176,7 +176,7 @@ function Step2({ formData, onChange, errors, clearError, onIdDocumentChange }: S
           <FieldError message={errors.bvn} />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="nin">NIN<Asterisk /></Label>
+          <Label htmlFor="nin">ID number<Asterisk /></Label>
           <Input
             id="nin"
             placeholder="98765432101"
@@ -412,9 +412,9 @@ export default function Page() {
       }
       const ninDigits = formData.nin.replace(/\D/g, "")
       if (!formData.nin.trim()) {
-        next.nin = "NIN is required"
+        next.nin = "ID number is required"
       } else if (ninDigits.length !== 11) {
-        next.nin = "NIN must be exactly 11 digits"
+        next.nin = "ID number must be exactly 11 digits"
       }
       if (!formData.idType) next.idType = "Please select an ID type"
       if (!idDocumentFile) next.idDocument = "Please upload your ID document"
