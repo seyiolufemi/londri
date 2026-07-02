@@ -1,6 +1,7 @@
 "use client"
 
-import { Fragment, useEffect, useState } from "react"
+import { Fragment, useEffect, useRef, useState } from "react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { Check, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -223,9 +224,10 @@ function Step2({ formData, onChange, errors, clearError, onIdDocumentChange }: S
 interface Step3Props extends StepProps {
   accountVerifying: boolean
   accountVerified: boolean
+  onAccountNumberChange: (value: string) => void
 }
 
-function Step3({ formData, onChange, errors, clearError, accountVerifying, accountVerified }: Step3Props) {
+function Step3({ formData, onChange, errors, clearError, accountVerifying, accountVerified, onAccountNumberChange }: Step3Props) {
   return (
     <div>
       <h2 className="font-[family-name:var(--font-jakarta)] text-xl font-semibold text-foreground">
@@ -259,7 +261,7 @@ function Step3({ formData, onChange, errors, clearError, accountVerifying, accou
             placeholder="0123456789"
             maxLength={10}
             value={formData.accountNumber}
-            onChange={(e) => { onChange("accountNumber", e.target.value); clearError("accountNumber") }}
+            onChange={(e) => onAccountNumberChange(e.target.value)}
           />
           <FieldError message={errors.accountNumber} />
         </div>
@@ -366,24 +368,34 @@ export default function Page() {
     clearError(field as keyof KybErrors)
   }
 
-  const accountNumber = kybData.accountNumber
+  const verifyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    if (accountNumber.length === 10) {
+    return () => {
+      if (verifyTimerRef.current) clearTimeout(verifyTimerRef.current)
+    }
+  }, [])
+
+  const handleAccountNumberChange = (value: string) => {
+    onChange("accountNumber", value)
+    clearError("accountNumber")
+
+    if (verifyTimerRef.current) clearTimeout(verifyTimerRef.current)
+    setKybData({ accountName: "" })
+
+    if (value.length === 10) {
       setAccountVerifying(true)
       setAccountVerified(false)
-      setKybData({ accountName: "" })
-      const timer = setTimeout(() => {
+      verifyTimerRef.current = setTimeout(() => {
         setKybData({ accountName: "AMARA OKONKWO" })
         setAccountVerifying(false)
         setAccountVerified(true)
       }, 1500)
-      return () => clearTimeout(timer)
+    } else {
+      setAccountVerifying(false)
+      setAccountVerified(false)
     }
-    setAccountVerifying(false)
-    setAccountVerified(false)
-    setKybData({ accountName: "" })
-  }, [accountNumber, setKybData])
+  }
 
   const handleBack = () => {
     setErrors({})
@@ -450,7 +462,7 @@ export default function Page() {
       {/* Left column — scrollable */}
       <div className="w-1/2 overflow-y-auto bg-background">
         <div className="px-12 py-12">
-          <img src="/logo+wordmark-teal.png" alt="Londri" className="h-7 w-auto" />
+          <Image src="/logo+wordmark-teal.png" alt="Londri" width={236} height={73} className="h-7 w-auto" />
 
           {/* Step indicator */}
           <div className="mt-8 flex items-start">
@@ -514,6 +526,7 @@ export default function Page() {
                 clearError={clearError}
                 accountVerifying={accountVerifying}
                 accountVerified={accountVerified}
+                onAccountNumberChange={handleAccountNumberChange}
               />
             )}
             {kybStep === 4 && (
