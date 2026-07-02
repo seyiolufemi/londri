@@ -1,5 +1,7 @@
 export type KybStatus = "pending" | "under_review" | "approved" | "rejected"
-export type OrderStatus = "received" | "processing" | "ready" | "delivered" | "cancelled"
+export type OrderStatus = "requested" | "confirmed" | "picked_up" | "in_progress" | "ready" | "completed" | "cancelled"
+export type OrderChannel = "online" | "walk_in" | "subscription"
+export type PaymentStatus = "paid" | "unpaid"
 export type TransactionType = "payment" | "refund" | "payout" | "subscription"
 export type TransactionStatus = "successful" | "pending" | "failed"
 export type SubscriptionStatus = "active" | "paused" | "expired" | "cancelled"
@@ -78,6 +80,8 @@ export interface Order {
   items: OrderItem[]
   totalAmount: number
   status: OrderStatus
+  channel: OrderChannel
+  paymentStatus: PaymentStatus
   pickupAddress: string
   deliveryAddress: string
   pickupDate: string

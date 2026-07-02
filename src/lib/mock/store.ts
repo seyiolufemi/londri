@@ -11,6 +11,7 @@ import type {
   Transaction,
   CustomerSubscription,
   KybStatus,
+  OrderStatus,
 } from "@/types"
 import {
   businesses as initialBusinesses,
@@ -76,7 +77,8 @@ interface StoreState {
   setTransactions: (transactions: Transaction[]) => void
 
   addOrder: (order: Order) => void
-  updateOrderStatus: (orderId: string, event: OrderStatusEvent) => void
+  updateOrderStatus: (orderId: string, newStatus: OrderStatus) => void
+  updateOrderPaymentStatus: (orderId: string, paymentStatus: "paid" | "unpaid") => void
   addTransaction: (transaction: Transaction) => void
   updatePriceListItem: (item: PriceListItem) => void
 }
@@ -119,12 +121,30 @@ export const useStore = create<StoreState>((set) => ({
   addOrder: (order) =>
     set((state) => ({ orders: [order, ...state.orders] })),
 
-  updateOrderStatus: (orderId, event) =>
+  updateOrderStatus: (orderId, newStatus) =>
+    set((state) => {
+      const now = new Date().toISOString()
+      const newEvent: OrderStatusEvent = {
+        id: `evt_${Date.now()}`,
+        orderId,
+        status: newStatus,
+        note: null,
+        createdAt: now,
+        createdBy: "staff",
+      }
+      return {
+        orders: state.orders.map((o) =>
+          o.id === orderId ? { ...o, status: newStatus, updatedAt: now } : o
+        ),
+        orderStatusEvents: [...state.orderStatusEvents, newEvent],
+      }
+    }),
+
+  updateOrderPaymentStatus: (orderId, paymentStatus) =>
     set((state) => ({
       orders: state.orders.map((o) =>
-        o.id === orderId ? { ...o, status: event.status, updatedAt: event.createdAt } : o
+        o.id === orderId ? { ...o, paymentStatus } : o
       ),
-      orderStatusEvents: [...state.orderStatusEvents, event],
     })),
 
   addTransaction: (transaction) =>

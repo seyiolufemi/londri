@@ -227,7 +227,7 @@ export default function OverviewPage() {
   }, [transactions, start, end])
 
   const activeOrders = useMemo(
-    () => orders.filter((o) => o.status !== "delivered" && o.status !== "cancelled").length,
+    () => orders.filter((o) => o.status !== "completed" && o.status !== "cancelled").length,
     [orders]
   )
 
@@ -235,7 +235,7 @@ export default function OverviewPage() {
     () =>
       orders.filter(
         (o) =>
-          o.status === "delivered" &&
+          o.status === "completed" &&
           o.actualDeliveryDate != null &&
           new Date(o.actualDeliveryDate) >= start &&
           new Date(o.actualDeliveryDate) <= end
