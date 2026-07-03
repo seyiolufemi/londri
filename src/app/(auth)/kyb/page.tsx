@@ -26,6 +26,8 @@ import {
   type Bank,
 } from "@/redux/api/accountsApi"
 import { useRegisterBusinessMutation } from "@/redux/api/businessApi"
+import { useSubmitKycMutation } from "@/redux/api/complianceApi"
+import { useUploadFileMutation } from "@/redux/api/uploadApi"
 import { getApiErrorMessage } from "@/lib/apiError"
 
 const NIGERIAN_STATES = [
@@ -390,6 +392,8 @@ export default function Page() {
   const [lookupBankAccount] = useLazyLookupBankAccountQuery()
   const [saveBankAccount, { isLoading: isSavingBank }] = useSaveBankAccountMutation()
   const [registerBusiness, { isLoading: isRegisteringBusiness }] = useRegisterBusinessMutation()
+  const [uploadFile, { isLoading: isUploadingDocument }] = useUploadFileMutation()
+  const [submitKyc, { isLoading: isSubmittingKyc }] = useSubmitKycMutation()
 
   const verifyAccount = async (accountNumber: string, bankCode: string) => {
     setAccountVerifying(true)
@@ -493,6 +497,21 @@ export default function Page() {
         }).unwrap()
       } catch (error) {
         toast.error(getApiErrorMessage((error as { data?: unknown }).data, "Couldn't save business details"))
+        return
+      }
+    } else if (kybStep === 2) {
+      if (!idDocumentFile) return
+
+      try {
+        const { url } = await uploadFile(idDocumentFile).unwrap()
+        await submitKyc({
+          bvn: formData.bvn,
+          id_type: formData.idType,
+          id_number: formData.nin,
+          id_document: url,
+        }).unwrap()
+      } catch (error) {
+        toast.error(getApiErrorMessage((error as { data?: unknown }).data, "Couldn't submit KYC details"))
         return
       }
     } else if (kybStep === 3) {
@@ -604,8 +623,14 @@ export default function Page() {
             <Button variant="outline" onClick={handleBack}>
               Back
             </Button>
-            <Button variant="default" onClick={handleContinue} disabled={isRegisteringBusiness || isSavingBank}>
-              {(isRegisteringBusiness || isSavingBank) && <Loader2 className="size-4 animate-spin" />}
+            <Button
+              variant="default"
+              onClick={handleContinue}
+              disabled={isRegisteringBusiness || isUploadingDocument || isSubmittingKyc || isSavingBank}
+            >
+              {(isRegisteringBusiness || isUploadingDocument || isSubmittingKyc || isSavingBank) && (
+                <Loader2 className="size-4 animate-spin" />
+              )}
               {kybStep === 4 ? "Submit for review" : "Continue"}
             </Button>
           </div>
