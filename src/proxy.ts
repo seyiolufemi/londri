@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-const PUBLIC_PATHS = ["/signup", "/kyb", "/kyb-status", "/api/auth"]
+const PUBLIC_PATHS = ["/signup", "/kyb", "/kyb-status", "/api"]
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
@@ -21,5 +21,5 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)"],
 }

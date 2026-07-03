@@ -22,9 +22,9 @@
 - Dark mode via the `.dark` class variant
 
 ## State
-- Zustand for all client state
+- Zustand for UI/client-only state (wizard steps, local toggles) — store is in `lib/mock/store.ts`
+- Redux Toolkit (RTK Query) for server/API state — root API slice in `redux/apiManager.ts`, one domain file per feature in `redux/api/`
 - Mock data lives in `lib/mock/` — never hardcode data inside components
-- Store is in `lib/mock/store.ts`
 
 ## Git
 - Do not commit
