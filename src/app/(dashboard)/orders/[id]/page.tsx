@@ -1,3 +1,5 @@
-export default function Page() {
-  return <h1>Order Detail</h1>
+import { redirect } from "next/navigation"
+
+export default function OrderDetailPage() {
+  redirect("/orders")
 }

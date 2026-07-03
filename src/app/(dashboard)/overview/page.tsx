@@ -227,7 +227,7 @@ export default function OverviewPage() {
   }, [transactions, start, end])
 
   const activeOrders = useMemo(
-    () => orders.filter((o) => o.status !== "delivered" && o.status !== "cancelled").length,
+    () => orders.filter((o) => o.status !== "completed" && o.status !== "cancelled").length,
     [orders]
   )
 
@@ -235,7 +235,7 @@ export default function OverviewPage() {
     () =>
       orders.filter(
         (o) =>
-          o.status === "delivered" &&
+          o.status === "completed" &&
           o.actualDeliveryDate != null &&
           new Date(o.actualDeliveryDate) >= start &&
           new Date(o.actualDeliveryDate) <= end
@@ -367,7 +367,7 @@ export default function OverviewPage() {
               description="Create an order for a walk-in customer"
               icon={Plus}
               locked={locked}
-              onClick={locked ? handleLockedAction : () => router.push("/walk-in")}
+              onClick={locked ? handleLockedAction : () => router.push("/orders/new")}
             />
             <QuickAction
               label="Manage Orders"

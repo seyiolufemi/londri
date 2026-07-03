@@ -11,6 +11,7 @@ import type {
   Transaction,
   CustomerSubscription,
   KybStatus,
+  OrderStatus,
 } from "@/types"
 import {
   businesses as initialBusinesses,
@@ -21,6 +22,7 @@ import {
   orders as initialOrders,
   orderStatusEvents as initialOrderStatusEvents,
   transactions as initialTransactions,
+  itemCategories as initialItemCategories,
 } from "./data"
 
 export interface SignupFormData {
@@ -65,6 +67,7 @@ interface StoreState {
   orders: Order[]
   orderStatusEvents: OrderStatusEvent[]
   transactions: Transaction[]
+  itemCategories: string[]
 
   setBusinesses: (businesses: Business[]) => void
   setKybSubmissions: (submissions: KybSubmission[]) => void
@@ -75,10 +78,24 @@ interface StoreState {
   setOrderStatusEvents: (events: OrderStatusEvent[]) => void
   setTransactions: (transactions: Transaction[]) => void
 
+  addItemCategory: (category: string) => void
+  deleteItemCategory: (category: string) => void
+
+  addSubscriptionPlan: (plan: SubscriptionPlan) => void
+  updateSubscriptionPlan: (id: string, updates: Partial<SubscriptionPlan>) => void
+  deleteSubscriptionPlan: (id: string) => void
+  togglePlanActive: (id: string) => void
+  addCustomerSubscription: (subscription: CustomerSubscription) => void
+
   addOrder: (order: Order) => void
-  updateOrderStatus: (orderId: string, event: OrderStatusEvent) => void
+  addOrderStatusEvent: (event: OrderStatusEvent) => void
+  updateOrderStatus: (orderId: string, newStatus: OrderStatus) => void
+  updateOrderPaymentStatus: (orderId: string, paymentStatus: "paid" | "unpaid") => void
   addTransaction: (transaction: Transaction) => void
-  updatePriceListItem: (item: PriceListItem) => void
+  addPriceListItem: (item: PriceListItem) => void
+  updatePriceListItem: (id: string, updates: Partial<PriceListItem>) => void
+  deletePriceListItem: (id: string) => void
+  togglePriceListItemActive: (id: string) => void
 }
 
 export const useStore = create<StoreState>((set) => ({
@@ -106,6 +123,7 @@ export const useStore = create<StoreState>((set) => ({
   orders: initialOrders,
   orderStatusEvents: initialOrderStatusEvents,
   transactions: initialTransactions,
+  itemCategories: initialItemCategories,
 
   setBusinesses: (businesses) => set({ businesses }),
   setKybSubmissions: (kybSubmissions) => set({ kybSubmissions }),
@@ -116,22 +134,101 @@ export const useStore = create<StoreState>((set) => ({
   setOrderStatusEvents: (orderStatusEvents) => set({ orderStatusEvents }),
   setTransactions: (transactions) => set({ transactions }),
 
+  addItemCategory: (category) =>
+    set((state) => {
+      const exists = state.itemCategories.some(
+        (c) => c.toLowerCase() === category.toLowerCase()
+      )
+      if (exists) return {}
+      return { itemCategories: [...state.itemCategories, category] }
+    }),
+
+  deleteItemCategory: (category) =>
+    set((state) => ({
+      itemCategories: state.itemCategories.filter(
+        (c) => c.toLowerCase() !== category.toLowerCase()
+      ),
+    })),
+
+  addSubscriptionPlan: (plan) =>
+    set((state) => ({ subscriptionPlans: [...state.subscriptionPlans, plan] })),
+
+  updateSubscriptionPlan: (id, updates) =>
+    set((state) => ({
+      subscriptionPlans: state.subscriptionPlans.map((p) =>
+        p.id === id ? { ...p, ...updates } : p
+      ),
+    })),
+
+  deleteSubscriptionPlan: (id) =>
+    set((state) => ({
+      subscriptionPlans: state.subscriptionPlans.filter((p) => p.id !== id),
+    })),
+
+  togglePlanActive: (id) =>
+    set((state) => ({
+      subscriptionPlans: state.subscriptionPlans.map((p) =>
+        p.id === id ? { ...p, isActive: !p.isActive } : p
+      ),
+    })),
+
+  addCustomerSubscription: (subscription) =>
+    set((state) => ({
+      customerSubscriptions: [...state.customerSubscriptions, subscription],
+    })),
+
   addOrder: (order) =>
     set((state) => ({ orders: [order, ...state.orders] })),
 
-  updateOrderStatus: (orderId, event) =>
+  addOrderStatusEvent: (event) =>
+    set((state) => ({ orderStatusEvents: [...state.orderStatusEvents, event] })),
+
+  updateOrderStatus: (orderId, newStatus) =>
+    set((state) => {
+      const now = new Date().toISOString()
+      const newEvent: OrderStatusEvent = {
+        id: `evt_${Date.now()}`,
+        orderId,
+        status: newStatus,
+        note: null,
+        createdAt: now,
+        createdBy: "staff",
+      }
+      return {
+        orders: state.orders.map((o) =>
+          o.id === orderId ? { ...o, status: newStatus, updatedAt: now } : o
+        ),
+        orderStatusEvents: [...state.orderStatusEvents, newEvent],
+      }
+    }),
+
+  updateOrderPaymentStatus: (orderId, paymentStatus) =>
     set((state) => ({
       orders: state.orders.map((o) =>
-        o.id === orderId ? { ...o, status: event.status, updatedAt: event.createdAt } : o
+        o.id === orderId ? { ...o, paymentStatus } : o
       ),
-      orderStatusEvents: [...state.orderStatusEvents, event],
     })),
 
   addTransaction: (transaction) =>
     set((state) => ({ transactions: [transaction, ...state.transactions] })),
 
-  updatePriceListItem: (item) =>
+  addPriceListItem: (item) =>
+    set((state) => ({ priceListItems: [...state.priceListItems, item] })),
+
+  updatePriceListItem: (id, updates) =>
     set((state) => ({
-      priceListItems: state.priceListItems.map((p) => (p.id === item.id ? item : p)),
+      priceListItems: state.priceListItems.map((p) => (p.id === id ? { ...p, ...updates } : p)),
+    })),
+
+  deletePriceListItem: (id) =>
+    set((state) => ({
+      priceListItems: state.priceListItems.filter((p) => p.id !== id),
+    })),
+
+  togglePriceListItemActive: (id) =>
+    set((state) => ({
+      priceListItems: state.priceListItems.map((p) =>
+        p.id === id ? { ...p, isActive: !p.isActive } : p
+      ),
     })),
 }))
