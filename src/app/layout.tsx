@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Plus_Jakarta_Sans, Inter } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
+import { ReduxProvider } from "@/redux/ReduxProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -42,8 +43,10 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${jakarta.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-          <TooltipProvider>{children}</TooltipProvider>
-          <Toaster position="bottom-right" />
+          <ReduxProvider>
+            <TooltipProvider>{children}</TooltipProvider>
+            <Toaster position="bottom-right" />
+          </ReduxProvider>
         </body>
     </html>
   );
