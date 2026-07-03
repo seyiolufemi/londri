@@ -367,7 +367,7 @@ export default function OverviewPage() {
               description="Create an order for a walk-in customer"
               icon={Plus}
               locked={locked}
-              onClick={locked ? handleLockedAction : () => router.push("/walk-in")}
+              onClick={locked ? handleLockedAction : () => router.push("/orders/new")}
             />
             <QuickAction
               label="Manage Orders"

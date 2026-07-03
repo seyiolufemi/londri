@@ -49,8 +49,10 @@ export interface SubscriptionPlan {
   id: string
   name: string
   price: number
-  billingCycle: "monthly" | "quarterly" | "annually"
+  billingCycle: "weekly" | "monthly" | "quarterly" | "annually"
   credits: number
+  categories: PriceCategory[]
+  description: string
   features: string[]
   isPopular: boolean
   isActive: boolean

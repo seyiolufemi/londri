@@ -76,7 +76,14 @@ interface StoreState {
   setOrderStatusEvents: (events: OrderStatusEvent[]) => void
   setTransactions: (transactions: Transaction[]) => void
 
+  addSubscriptionPlan: (plan: SubscriptionPlan) => void
+  updateSubscriptionPlan: (id: string, updates: Partial<SubscriptionPlan>) => void
+  deleteSubscriptionPlan: (id: string) => void
+  togglePlanActive: (id: string) => void
+  addCustomerSubscription: (subscription: CustomerSubscription) => void
+
   addOrder: (order: Order) => void
+  addOrderStatusEvent: (event: OrderStatusEvent) => void
   updateOrderStatus: (orderId: string, newStatus: OrderStatus) => void
   updateOrderPaymentStatus: (orderId: string, paymentStatus: "paid" | "unpaid") => void
   addTransaction: (transaction: Transaction) => void
@@ -118,8 +125,38 @@ export const useStore = create<StoreState>((set) => ({
   setOrderStatusEvents: (orderStatusEvents) => set({ orderStatusEvents }),
   setTransactions: (transactions) => set({ transactions }),
 
+  addSubscriptionPlan: (plan) =>
+    set((state) => ({ subscriptionPlans: [...state.subscriptionPlans, plan] })),
+
+  updateSubscriptionPlan: (id, updates) =>
+    set((state) => ({
+      subscriptionPlans: state.subscriptionPlans.map((p) =>
+        p.id === id ? { ...p, ...updates } : p
+      ),
+    })),
+
+  deleteSubscriptionPlan: (id) =>
+    set((state) => ({
+      subscriptionPlans: state.subscriptionPlans.filter((p) => p.id !== id),
+    })),
+
+  togglePlanActive: (id) =>
+    set((state) => ({
+      subscriptionPlans: state.subscriptionPlans.map((p) =>
+        p.id === id ? { ...p, isActive: !p.isActive } : p
+      ),
+    })),
+
+  addCustomerSubscription: (subscription) =>
+    set((state) => ({
+      customerSubscriptions: [...state.customerSubscriptions, subscription],
+    })),
+
   addOrder: (order) =>
     set((state) => ({ orders: [order, ...state.orders] })),
+
+  addOrderStatusEvent: (event) =>
+    set((state) => ({ orderStatusEvents: [...state.orderStatusEvents, event] })),
 
   updateOrderStatus: (orderId, newStatus) =>
     set((state) => {

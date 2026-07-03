@@ -563,7 +563,7 @@ export default function OrdersPage() {
               toast.warning("Complete verification to create orders.")
               return
             }
-            router.push("/walk-in")
+            router.push("/orders/new")
           }}
         >
           <Plus className="mr-1.5 size-4" />

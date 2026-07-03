@@ -198,6 +198,8 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     price: 10000,
     billingCycle: "monthly",
     credits: 20,
+    categories: ["clothing", "bedding", "household", "specialty"],
+    description: "Perfect for households with light laundry needs. Covers all fabric categories.",
     features: [
       "20 laundry credits/month",
       "Free pickup within 5km",
@@ -213,6 +215,8 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     price: 22000,
     billingCycle: "monthly",
     credits: 50,
+    categories: ["clothing"],
+    description: "Ideal for regular households with moderate clothing laundry needs. Priority support included.",
     features: [
       "50 laundry credits/month",
       "Free pickup within 10km",
@@ -229,6 +233,8 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     price: 42000,
     billingCycle: "monthly",
     credits: 120,
+    categories: ["clothing", "bedding", "household", "specialty"],
+    description: "Full-service plan for large households. Same-day turnaround with dedicated account manager.",
     features: [
       "120 laundry credits/month",
       "Free pickup anywhere in city",
@@ -247,7 +253,7 @@ export const customerSubscriptions: CustomerSubscription[] = [
     id: "sub_001",
     customerId: "cust_001",
     customerName: "Tunde Adeyemi",
-    customerPhone: "08154320987",
+    customerPhone: "08012345678",
     planId: "plan_002",
     planName: "Standard",
     status: "active",
@@ -307,7 +313,7 @@ export const orders: Order[] = [
     reference: "LDR-20260601-0001",
     customerId: "cust_001",
     customerName: "Tunde Adeyemi",
-    customerPhone: "08154320987",
+    customerPhone: "08012345678",
     items: [
       { priceListItemId: "item_001", name: "Plain Shirt", quantity: 3, unitPrice: 800, subtotal: 2400 },
       { priceListItemId: "item_002", name: "Trousers", quantity: 2, unitPrice: 800, subtotal: 1600 },
