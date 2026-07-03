@@ -58,6 +58,7 @@ interface StoreState {
   kybStep: 1 | 2 | 3 | 4
   setKybData: (data: Partial<KybFormData>) => void
   setKybStep: (step: 1 | 2 | 3 | 4) => void
+  resetKybData: () => void
 
   kybStatus: KybStatus
   setKybStatus: (status: KybStatus) => void
@@ -101,6 +102,11 @@ interface StoreState {
   togglePriceListItemActive: (id: string) => void
 }
 
+const EMPTY_KYB_DATA: KybFormData = {
+  cacNumber: "", businessAddress: "", state: "", city: "",
+  bvn: "", nin: "", idType: "", bankName: "", bankCode: "", accountNumber: "", accountName: "",
+}
+
 export const useStore = create<StoreState>()(
   persist(
     (set) => ({
@@ -109,13 +115,11 @@ export const useStore = create<StoreState>()(
   setSignupData: (data) => set((state) => ({ signupData: { ...state.signupData, ...data } })),
   setSignupStep: (signupStep) => set({ signupStep }),
 
-  kybData: {
-    cacNumber: "", businessAddress: "", state: "", city: "",
-    bvn: "", nin: "", idType: "", bankName: "", bankCode: "", accountNumber: "", accountName: "",
-  },
+  kybData: EMPTY_KYB_DATA,
   kybStep: 1,
   setKybData: (data) => set((state) => ({ kybData: { ...state.kybData, ...data } })),
   setKybStep: (kybStep) => set({ kybStep }),
+  resetKybData: () => set({ kybStep: 1, kybData: EMPTY_KYB_DATA }),
 
   kybStatus: "pending",
   setKybStatus: (kybStatus) => set({ kybStatus }),

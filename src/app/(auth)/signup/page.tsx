@@ -40,6 +40,7 @@ export default function Page() {
   const signupStep = useStore((s) => s.signupStep)
   const setSignupData = useStore((s) => s.setSignupData)
   const setSignupStep = useStore((s) => s.setSignupStep)
+  const resetKybData = useStore((s) => s.resetKybData)
 
   const [registerOwner, { isLoading: isRegistering }] = useRegisterOwnerMutation()
   const [verifyOwnerEmail, { isLoading: isVerifying }] = useVerifyOwnerEmailMutation()
@@ -122,6 +123,7 @@ export default function Page() {
       await verifyOwnerEmail({ email: signupData.email, otp_code: otp }).unwrap()
       await loginOwner({ email: signupData.email, password: signupData.password }).unwrap()
 
+      resetKybData()
       toast.success("Email verified")
       router.push("/kyb")
     } catch (error) {
