@@ -1,9 +1,10 @@
 "use client"
 
-import { Fragment, useEffect, useRef, useState } from "react"
+import { Fragment, useState } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { Check, CheckCircle2 } from "lucide-react"
+import { toast } from "sonner"
+import { Check, CheckCircle2, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -18,6 +19,14 @@ import UploadZone from "@/components/shared/UploadZone"
 import AnimatedPanel from "@/components/auth/AnimatedPanel"
 import { useStore, type KybFormData } from "@/lib/mock/store"
 import { cn } from "@/lib/utils"
+import {
+  useGetBanksQuery,
+  useLazyLookupBankAccountQuery,
+  useSaveBankAccountMutation,
+  type Bank,
+} from "@/redux/api/accountsApi"
+import { useRegisterBusinessMutation } from "@/redux/api/businessApi"
+import { getApiErrorMessage } from "@/lib/apiError"
 
 const NIGERIAN_STATES = [
   "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue",
@@ -25,11 +34,6 @@ const NIGERIAN_STATES = [
   "Gombe", "Imo", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi", "Kogi",
   "Kwara", "Lagos", "Nasarawa", "Niger", "Ogun", "Ondo", "Osun", "Oyo",
   "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara",
-]
-
-const NIGERIAN_BANKS = [
-  "Access Bank", "GTBank", "First Bank", "Zenith Bank", "UBA",
-  "Fidelity Bank", "Stanbic IBTC", "Sterling Bank", "Wema Bank", "Kuda Bank",
 ]
 
 const STEPS = [
@@ -222,12 +226,25 @@ function Step2({ formData, onChange, errors, clearError, onIdDocumentChange }: S
 }
 
 interface Step3Props extends StepProps {
+  banks: Bank[]
+  banksLoading: boolean
   accountVerifying: boolean
   accountVerified: boolean
+  onBankChange: (bankCode: string) => void
   onAccountNumberChange: (value: string) => void
 }
 
-function Step3({ formData, onChange, errors, clearError, accountVerifying, accountVerified, onAccountNumberChange }: Step3Props) {
+function Step3({
+  formData,
+  errors,
+  clearError,
+  banks,
+  banksLoading,
+  accountVerifying,
+  accountVerified,
+  onBankChange,
+  onAccountNumberChange,
+}: Step3Props) {
   return (
     <div>
       <h2 className="font-[family-name:var(--font-jakarta)] text-xl font-semibold text-foreground">
@@ -240,15 +257,16 @@ function Step3({ formData, onChange, errors, clearError, accountVerifying, accou
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="bank-name">Bank name<Asterisk /></Label>
           <Select
-            value={formData.bankName}
-            onValueChange={(v) => { onChange("bankName", v); clearError("bankName") }}
+            value={formData.bankCode}
+            onValueChange={(v) => { onBankChange(v); clearError("bankName") }}
+            disabled={banksLoading}
           >
             <SelectTrigger id="bank-name" className="w-full">
-              <SelectValue placeholder="Select a bank" />
+              <SelectValue placeholder={banksLoading ? "Loading banks…" : "Select a bank"} />
             </SelectTrigger>
             <SelectContent position="popper">
-              {NIGERIAN_BANKS.map((b) => (
-                <SelectItem key={b} value={b}>{b}</SelectItem>
+              {banks.map((b) => (
+                <SelectItem key={b.code} value={b.code}>{b.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -368,32 +386,46 @@ export default function Page() {
     clearError(field as keyof KybErrors)
   }
 
-  const verifyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const { data: banks = [], isLoading: banksLoading } = useGetBanksQuery()
+  const [lookupBankAccount] = useLazyLookupBankAccountQuery()
+  const [saveBankAccount, { isLoading: isSavingBank }] = useSaveBankAccountMutation()
+  const [registerBusiness, { isLoading: isRegisteringBusiness }] = useRegisterBusinessMutation()
 
-  useEffect(() => {
-    return () => {
-      if (verifyTimerRef.current) clearTimeout(verifyTimerRef.current)
+  const verifyAccount = async (accountNumber: string, bankCode: string) => {
+    setAccountVerifying(true)
+    setAccountVerified(false)
+    try {
+      const result = await lookupBankAccount({ account_number: accountNumber, bank_code: bankCode }).unwrap()
+      setKybData({ accountName: result.account_name })
+      setAccountVerified(true)
+    } catch (error) {
+      setKybData({ accountName: "" })
+      toast.error(getApiErrorMessage((error as { data?: unknown }).data, "Couldn't verify that account number"))
+    } finally {
+      setAccountVerifying(false)
     }
-  }, [])
+  }
 
   const handleAccountNumberChange = (value: string) => {
     onChange("accountNumber", value)
     clearError("accountNumber")
-
-    if (verifyTimerRef.current) clearTimeout(verifyTimerRef.current)
     setKybData({ accountName: "" })
+    setAccountVerified(false)
 
-    if (value.length === 10) {
-      setAccountVerifying(true)
-      setAccountVerified(false)
-      verifyTimerRef.current = setTimeout(() => {
-        setKybData({ accountName: "AMARA OKONKWO" })
-        setAccountVerifying(false)
-        setAccountVerified(true)
-      }, 1500)
+    if (value.length === 10 && formData.bankCode) {
+      verifyAccount(value, formData.bankCode)
     } else {
       setAccountVerifying(false)
-      setAccountVerified(false)
+    }
+  }
+
+  const handleBankChange = (bankCode: string) => {
+    const bank = banks.find((b) => b.code === bankCode)
+    setKybData({ bankCode, bankName: bank?.name ?? "" })
+    clearError("bankName")
+
+    if (formData.accountNumber.length === 10) {
+      verifyAccount(formData.accountNumber, bankCode)
     }
   }
 
@@ -407,7 +439,7 @@ export default function Page() {
     }
   }
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     const next: KybErrors = {}
 
     if (kybStep === 1) {
@@ -431,7 +463,7 @@ export default function Page() {
       if (!formData.idType) next.idType = "Please select an ID type"
       if (!idDocumentFile) next.idDocument = "Please upload your ID document"
     } else if (kybStep === 3) {
-      if (!formData.bankName) next.bankName = "Please select a bank"
+      if (!formData.bankCode) next.bankName = "Please select a bank"
       const accDigits = formData.accountNumber.replace(/\D/g, "")
       if (!formData.accountNumber) {
         next.accountNumber = "Account number is required"
@@ -449,6 +481,31 @@ export default function Page() {
 
     setErrors(next)
     if (Object.keys(next).length > 0) return
+
+    if (kybStep === 1) {
+      try {
+        await registerBusiness({
+          name: formData.businessName,
+          cac_registration_number: formData.cacNumber,
+          address: formData.businessAddress,
+          city: formData.city,
+          state: formData.state,
+        }).unwrap()
+      } catch (error) {
+        toast.error(getApiErrorMessage((error as { data?: unknown }).data, "Couldn't save business details"))
+        return
+      }
+    } else if (kybStep === 3) {
+      try {
+        await saveBankAccount({
+          account_number: formData.accountNumber,
+          bank_code: formData.bankCode,
+        }).unwrap()
+      } catch (error) {
+        toast.error(getApiErrorMessage((error as { data?: unknown }).data, "Couldn't save bank account"))
+        return
+      }
+    }
 
     if (kybStep < 4) {
       setKybStep((kybStep + 1) as 2 | 3 | 4) // safe: kybStep < 4 checked above
@@ -524,8 +581,11 @@ export default function Page() {
                 onChange={onChange}
                 errors={errors}
                 clearError={clearError}
+                banks={banks}
+                banksLoading={banksLoading}
                 accountVerifying={accountVerifying}
                 accountVerified={accountVerified}
+                onBankChange={handleBankChange}
                 onAccountNumberChange={handleAccountNumberChange}
               />
             )}
@@ -544,7 +604,8 @@ export default function Page() {
             <Button variant="outline" onClick={handleBack}>
               Back
             </Button>
-            <Button variant="default" onClick={handleContinue}>
+            <Button variant="default" onClick={handleContinue} disabled={isRegisteringBusiness || isSavingBank}>
+              {(isRegisteringBusiness || isSavingBank) && <Loader2 className="size-4 animate-spin" />}
               {kybStep === 4 ? "Submit for review" : "Continue"}
             </Button>
           </div>

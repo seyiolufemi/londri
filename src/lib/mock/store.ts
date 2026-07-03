@@ -1,6 +1,7 @@
 "use client"
 
 import { create } from "zustand"
+import { persist, createJSONStorage } from "zustand/middleware"
 import type {
   Business,
   KybSubmission,
@@ -42,6 +43,7 @@ export interface KybFormData {
   nin: string
   idType: string
   bankName: string
+  bankCode: string
   accountNumber: string
   accountName: string
 }
@@ -99,7 +101,9 @@ interface StoreState {
   togglePriceListItemActive: (id: string) => void
 }
 
-export const useStore = create<StoreState>((set) => ({
+export const useStore = create<StoreState>()(
+  persist(
+    (set) => ({
   signupData: { businessName: "", ownerName: "", email: "", phone: "", password: "" },
   signupStep: 1,
   setSignupData: (data) => set((state) => ({ signupData: { ...state.signupData, ...data } })),
@@ -107,7 +111,7 @@ export const useStore = create<StoreState>((set) => ({
 
   kybData: {
     cacNumber: "", businessAddress: "", state: "", city: "",
-    bvn: "", nin: "", idType: "", bankName: "", accountNumber: "", accountName: "",
+    bvn: "", nin: "", idType: "", bankName: "", bankCode: "", accountNumber: "", accountName: "",
   },
   kybStep: 1,
   setKybData: (data) => set((state) => ({ kybData: { ...state.kybData, ...data } })),
@@ -232,4 +236,11 @@ export const useStore = create<StoreState>((set) => ({
         p.id === id ? { ...p, isActive: !p.isActive } : p
       ),
     })),
-}))
+    }),
+    {
+      name: "londri-kyb-progress",
+      storage: createJSONStorage(() => sessionStorage),
+      partialize: (state) => ({ kybStep: state.kybStep, kybData: state.kybData }),
+    }
+  )
+)
