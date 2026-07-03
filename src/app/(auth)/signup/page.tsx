@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { ChevronLeft } from "lucide-react"
+import { toast } from "sonner"
+import { ChevronLeft, Eye, EyeOff, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,27 +14,42 @@ import {
 } from "@/components/ui/input-otp"
 import AnimatedPanel from "@/components/auth/AnimatedPanel"
 import { useStore } from "@/lib/mock/store"
+import {
+  useRegisterOwnerMutation,
+  useVerifyOwnerEmailMutation,
+  useResendOwnerVerificationMutation,
+  useLoginOwnerMutation,
+} from "@/redux/api/authApi"
+import { getApiErrorMessage } from "@/lib/apiError"
 
 interface FormErrors {
   businessName?: string
   ownerName?: string
   email?: string
   phone?: string
+  password?: string
 }
 
 export default function Page() {
   const router = useRouter()
   const [errors, setErrors] = useState<FormErrors>({})
+  const [showPassword, setShowPassword] = useState(false)
+  const [otp, setOtp] = useState("")
 
   const signupData = useStore((s) => s.signupData)
   const signupStep = useStore((s) => s.signupStep)
   const setSignupData = useStore((s) => s.setSignupData)
   const setSignupStep = useStore((s) => s.setSignupStep)
 
+  const [registerOwner, { isLoading: isRegistering }] = useRegisterOwnerMutation()
+  const [verifyOwnerEmail, { isLoading: isVerifying }] = useVerifyOwnerEmailMutation()
+  const [resendOwnerVerification, { isLoading: isResending }] = useResendOwnerVerificationMutation()
+  const [loginOwner, { isLoading: isLoggingIn }] = useLoginOwnerMutation()
+
   const clearError = (field: keyof FormErrors) =>
     setErrors((prev) => ({ ...prev, [field]: undefined }))
 
-  const handleSendCode = () => {
+  const validateStep1 = () => {
     const next: FormErrors = {}
 
     if (!signupData.businessName.trim())
@@ -59,8 +75,58 @@ export default function Page() {
       next.phone = "Must start with +234 or 0 and be at least 11 digits"
     }
 
+    if (!signupData.password) {
+      next.password = "Password is required"
+    } else if (signupData.password.length < 8) {
+      next.password = "Password must be at least 8 characters"
+    }
+
     setErrors(next)
-    if (Object.keys(next).length === 0) setSignupStep(2)
+    return Object.keys(next).length === 0
+  }
+
+  const handleSendCode = async () => {
+    if (!validateStep1()) return
+
+    try {
+      await registerOwner({
+        name: signupData.ownerName,
+        email: signupData.email,
+        password: signupData.password,
+        phone: signupData.phone,
+      }).unwrap()
+
+      toast.success("Verification code sent to your email")
+      setSignupStep(2)
+    } catch (error) {
+      toast.error(getApiErrorMessage((error as { data?: unknown }).data))
+    }
+  }
+
+  const handleResendCode = async () => {
+    try {
+      await resendOwnerVerification({ email: signupData.email }).unwrap()
+      toast.success("Verification code resent")
+    } catch (error) {
+      toast.error(getApiErrorMessage((error as { data?: unknown }).data))
+    }
+  }
+
+  const handleVerify = async () => {
+    if (otp.length !== 6) {
+      toast.error("Enter the 6-digit code sent to your email")
+      return
+    }
+
+    try {
+      await verifyOwnerEmail({ email: signupData.email, otp_code: otp }).unwrap()
+      await loginOwner({ email: signupData.email, password: signupData.password }).unwrap()
+
+      toast.success("Email verified")
+      router.push("/kyb")
+    } catch (error) {
+      toast.error(getApiErrorMessage((error as { data?: unknown }).data))
+    }
   }
 
   return (
@@ -147,13 +213,40 @@ export default function Page() {
                     <p className="mt-1 text-xs text-destructive">{errors.phone}</p>
                   )}
                 </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="password">Password <span className="text-destructive">*</span></Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="At least 8 characters"
+                      value={signupData.password}
+                      onChange={(e) => {
+                        setSignupData({ password: e.target.value })
+                        clearError("password")
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute inset-y-0 right-3 flex items-center text-muted-foreground"
+                    >
+                      {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
+                  {errors.password && (
+                    <p className="mt-1 text-xs text-destructive">{errors.password}</p>
+                  )}
+                </div>
               </div>
 
               <Button
                 variant="default"
                 className="mt-6 w-full"
                 onClick={handleSendCode}
+                disabled={isRegistering}
               >
+                {isRegistering && <Loader2 className="size-4 animate-spin" />}
                 Send verification code
               </Button>
 
@@ -175,13 +268,13 @@ export default function Page() {
               </button>
 
               <h1 className="text-2xl font-semibold text-foreground">
-                Check your WhatsApp
+                Check your email
               </h1>
               <p className="mt-2 mb-8 text-sm text-muted-foreground">
-                We sent a 6-digit code to {signupData.phone || "+234 801 234 5678"}
+                We sent a 6-digit code to {signupData.email}
               </p>
 
-              <InputOTP maxLength={6} containerClassName="gap-3">
+              <InputOTP maxLength={6} containerClassName="gap-3" value={otp} onChange={setOtp}>
                 {[0, 1, 2, 3, 4, 5].map((i) => (
                   <InputOTPGroup key={i}>
                     <InputOTPSlot index={i} className="size-12 text-base" />
@@ -192,10 +285,24 @@ export default function Page() {
               <Button
                 variant="default"
                 className="mt-6 w-full"
-                onClick={() => router.push("/kyb")}
+                onClick={handleVerify}
+                disabled={isVerifying || isLoggingIn}
               >
+                {(isVerifying || isLoggingIn) && <Loader2 className="size-4 animate-spin" />}
                 Verify & continue
               </Button>
+
+              <p className="mt-4 text-center text-sm text-muted-foreground">
+                Didn&apos;t get a code?{" "}
+                <button
+                  type="button"
+                  onClick={handleResendCode}
+                  disabled={isResending}
+                  className="text-primary disabled:opacity-50"
+                >
+                  {isResending ? "Resending…" : "Resend code"}
+                </button>
+              </p>
             </>
           )}
         </div>

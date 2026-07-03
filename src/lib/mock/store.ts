@@ -30,6 +30,7 @@ export interface SignupFormData {
   ownerName: string
   email: string
   phone: string
+  password: string
 }
 
 export interface KybFormData {
@@ -99,7 +100,7 @@ interface StoreState {
 }
 
 export const useStore = create<StoreState>((set) => ({
-  signupData: { businessName: "", ownerName: "", email: "", phone: "" },
+  signupData: { businessName: "", ownerName: "", email: "", phone: "", password: "" },
   signupStep: 1,
   setSignupData: (data) => set((state) => ({ signupData: { ...state.signupData, ...data } })),
   setSignupStep: (signupStep) => set({ signupStep }),

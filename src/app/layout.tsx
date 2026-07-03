@@ -42,12 +42,12 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${jakarta.variable} ${inter.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-          <ReduxProvider>
-            <TooltipProvider>{children}</TooltipProvider>
-            <Toaster position="bottom-right" />
-          </ReduxProvider>
-        </body>
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        <ReduxProvider>
+          <TooltipProvider>{children}</TooltipProvider>
+          <Toaster position="bottom-right" />
+        </ReduxProvider>
+      </body>
     </html>
   );
 }
