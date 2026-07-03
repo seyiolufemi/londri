@@ -22,6 +22,7 @@ import {
   orders as initialOrders,
   orderStatusEvents as initialOrderStatusEvents,
   transactions as initialTransactions,
+  itemCategories as initialItemCategories,
 } from "./data"
 
 export interface SignupFormData {
@@ -66,6 +67,7 @@ interface StoreState {
   orders: Order[]
   orderStatusEvents: OrderStatusEvent[]
   transactions: Transaction[]
+  itemCategories: string[]
 
   setBusinesses: (businesses: Business[]) => void
   setKybSubmissions: (submissions: KybSubmission[]) => void
@@ -75,6 +77,9 @@ interface StoreState {
   setOrders: (orders: Order[]) => void
   setOrderStatusEvents: (events: OrderStatusEvent[]) => void
   setTransactions: (transactions: Transaction[]) => void
+
+  addItemCategory: (category: string) => void
+  deleteItemCategory: (category: string) => void
 
   addSubscriptionPlan: (plan: SubscriptionPlan) => void
   updateSubscriptionPlan: (id: string, updates: Partial<SubscriptionPlan>) => void
@@ -87,7 +92,10 @@ interface StoreState {
   updateOrderStatus: (orderId: string, newStatus: OrderStatus) => void
   updateOrderPaymentStatus: (orderId: string, paymentStatus: "paid" | "unpaid") => void
   addTransaction: (transaction: Transaction) => void
-  updatePriceListItem: (item: PriceListItem) => void
+  addPriceListItem: (item: PriceListItem) => void
+  updatePriceListItem: (id: string, updates: Partial<PriceListItem>) => void
+  deletePriceListItem: (id: string) => void
+  togglePriceListItemActive: (id: string) => void
 }
 
 export const useStore = create<StoreState>((set) => ({
@@ -115,6 +123,7 @@ export const useStore = create<StoreState>((set) => ({
   orders: initialOrders,
   orderStatusEvents: initialOrderStatusEvents,
   transactions: initialTransactions,
+  itemCategories: initialItemCategories,
 
   setBusinesses: (businesses) => set({ businesses }),
   setKybSubmissions: (kybSubmissions) => set({ kybSubmissions }),
@@ -124,6 +133,22 @@ export const useStore = create<StoreState>((set) => ({
   setOrders: (orders) => set({ orders }),
   setOrderStatusEvents: (orderStatusEvents) => set({ orderStatusEvents }),
   setTransactions: (transactions) => set({ transactions }),
+
+  addItemCategory: (category) =>
+    set((state) => {
+      const exists = state.itemCategories.some(
+        (c) => c.toLowerCase() === category.toLowerCase()
+      )
+      if (exists) return {}
+      return { itemCategories: [...state.itemCategories, category] }
+    }),
+
+  deleteItemCategory: (category) =>
+    set((state) => ({
+      itemCategories: state.itemCategories.filter(
+        (c) => c.toLowerCase() !== category.toLowerCase()
+      ),
+    })),
 
   addSubscriptionPlan: (plan) =>
     set((state) => ({ subscriptionPlans: [...state.subscriptionPlans, plan] })),
@@ -187,8 +212,23 @@ export const useStore = create<StoreState>((set) => ({
   addTransaction: (transaction) =>
     set((state) => ({ transactions: [transaction, ...state.transactions] })),
 
-  updatePriceListItem: (item) =>
+  addPriceListItem: (item) =>
+    set((state) => ({ priceListItems: [...state.priceListItems, item] })),
+
+  updatePriceListItem: (id, updates) =>
     set((state) => ({
-      priceListItems: state.priceListItems.map((p) => (p.id === item.id ? item : p)),
+      priceListItems: state.priceListItems.map((p) => (p.id === id ? { ...p, ...updates } : p)),
+    })),
+
+  deletePriceListItem: (id) =>
+    set((state) => ({
+      priceListItems: state.priceListItems.filter((p) => p.id !== id),
+    })),
+
+  togglePriceListItemActive: (id) =>
+    set((state) => ({
+      priceListItems: state.priceListItems.map((p) =>
+        p.id === id ? { ...p, isActive: !p.isActive } : p
+      ),
     })),
 }))

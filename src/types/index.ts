@@ -6,6 +6,7 @@ export type TransactionType = "payment" | "refund" | "payout" | "subscription"
 export type TransactionStatus = "successful" | "pending" | "failed"
 export type SubscriptionStatus = "active" | "paused" | "expired" | "cancelled"
 export type PriceCategory = "clothing" | "bedding" | "household" | "specialty"
+export type ServiceType = "wash" | "dry_clean" | "iron"
 
 export interface Business {
   id: string
@@ -39,8 +40,10 @@ export interface PriceListItem {
   id: string
   name: string
   category: PriceCategory
+  serviceTypes: ServiceType[]
   price: number
   unit: string
+  turnaround: string
   description: string
   isActive: boolean
 }
