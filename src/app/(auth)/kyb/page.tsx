@@ -203,10 +203,10 @@ function Step2({ formData, onChange, errors, clearError, onIdDocumentChange }: S
               <SelectValue placeholder="Select an ID type" />
             </SelectTrigger>
             <SelectContent position="popper">
-              <SelectItem value="nin-slip">NIN Slip</SelectItem>
-              <SelectItem value="passport">International Passport</SelectItem>
-              <SelectItem value="drivers-license">Driver&apos;s License</SelectItem>
-              <SelectItem value="voters-card">Voter&apos;s Card</SelectItem>
+              <SelectItem value="national_id">NIN Slip</SelectItem>
+              <SelectItem value="international_passport">International Passport</SelectItem>
+              <SelectItem value="drivers_license">Driver&apos;s License</SelectItem>
+              <SelectItem value="voters_card">Voter&apos;s Card</SelectItem>
             </SelectContent>
           </Select>
           <FieldError message={errors.idType} />
