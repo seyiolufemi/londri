@@ -9,9 +9,9 @@ export function proxy(req: NextRequest) {
     return NextResponse.next()
   }
 
-  const accessToken = req.cookies.get("access_token")?.value
+  const refreshToken = req.cookies.get("refresh_token")?.value
 
-  if (!accessToken) {
+  if (!refreshToken) {
     const url = req.nextUrl.clone()
     url.pathname = "/signup"
     return NextResponse.redirect(url)
