@@ -10,3 +10,15 @@ export async function backendFetch(path: string, init: RequestInit = {}) {
     cache: "no-store",
   })
 }
+
+// Some endpoints (e.g. DELETE) return 204 No Content — calling .json() on an
+// empty body throws, which would report a failure even though the backend succeeded.
+export async function parseJsonSafe(res: Response) {
+  const text = await res.text()
+  if (!text) return null
+  try {
+    return JSON.parse(text)
+  } catch {
+    return null
+  }
+}
