@@ -17,11 +17,6 @@ export interface CreateCategoryResponse {
   code: number
 }
 
-export interface CategoriesListResponse {
-  categories: Category[]
-  message: string
-}
-
 export interface PriceListItem {
   id: string
   business_id: string
@@ -91,7 +86,7 @@ export const catalogApi = apiManager.injectEndpoints({
       query: (body) => ({ url: "/catalog/categories", method: "POST", body }),
       invalidatesTags: ["Category"],
     }),
-    getCategories: builder.query<CategoriesListResponse[], string>({
+    getCategories: builder.query<Category[], string>({
       query: (businessId) => `/catalog/${businessId}/categories`,
       providesTags: ["Category"],
     }),

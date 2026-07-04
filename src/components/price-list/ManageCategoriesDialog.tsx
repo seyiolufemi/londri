@@ -32,7 +32,7 @@ export default function ManageCategoriesDialog({ open, onOpenChange, businessId 
   const { data: categoriesData, isLoading } = useGetCategoriesQuery(businessId ?? "", {
     skip: !businessId,
   })
-  const categories = categoriesData?.[0]?.categories ?? []
+  const categories = categoriesData ?? []
 
   const [createCategory, { isLoading: isCreating }] = useCreateCategoryMutation()
   const [deleteCategory] = useDeleteCategoryMutation()

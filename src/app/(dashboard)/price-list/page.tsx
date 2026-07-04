@@ -62,7 +62,7 @@ export default function PriceListPage() {
     isLoading: categoriesLoading,
     isFetching: categoriesFetching,
   } = useGetCategoriesQuery(businessId ?? "", { skip: !businessId })
-  const categories = useMemo(() => categoriesData?.[0]?.categories ?? [], [categoriesData])
+  const categories = useMemo(() => categoriesData ?? [], [categoriesData])
   const categoryNameById = useMemo(
     () => Object.fromEntries(categories.map((c) => [c.id, c.name])),
     [categories]
