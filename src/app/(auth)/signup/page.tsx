@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type SubmitEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
@@ -87,7 +87,8 @@ export default function Page() {
     return Object.keys(next).length === 0
   }
 
-  const handleSendCode = async () => {
+  const handleSendCode = async (e: SubmitEvent) => {
+    e.preventDefault()
     if (!validateStep1()) return
 
     try {
@@ -114,7 +115,8 @@ export default function Page() {
     }
   }
 
-  const handleVerify = async () => {
+  const handleVerify = async (e: SubmitEvent) => {
+    e.preventDefault()
     if (otp.length !== 6) {
       toast.error("Enter the 6-digit code sent to your email")
       return
@@ -153,105 +155,107 @@ export default function Page() {
                 Start accepting orders and managing your laundry business online.
               </p>
 
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="business-name">Business name <span className="text-destructive">*</span></Label>
-                  <Input
-                    id="business-name"
-                    placeholder="Sparkle Wash Laundry"
-                    value={signupData.businessName}
-                    onChange={(e) => {
-                      setSignupData({ businessName: e.target.value })
-                      clearError("businessName")
-                    }}
-                  />
-                  {errors.businessName && (
-                    <p className="mt-1 text-xs text-destructive">{errors.businessName}</p>
-                  )}
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="owner-name">Owner full name <span className="text-destructive">*</span></Label>
-                  <Input
-                    id="owner-name"
-                    placeholder="Amara Okonkwo"
-                    value={signupData.ownerName}
-                    onChange={(e) => {
-                      setSignupData({ ownerName: e.target.value })
-                      clearError("ownerName")
-                    }}
-                  />
-                  {errors.ownerName && (
-                    <p className="mt-1 text-xs text-destructive">{errors.ownerName}</p>
-                  )}
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="email">Email address <span className="text-destructive">*</span></Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="amara@sparklewash.ng"
-                    value={signupData.email}
-                    onChange={(e) => {
-                      setSignupData({ email: e.target.value })
-                      clearError("email")
-                    }}
-                  />
-                  {errors.email && (
-                    <p className="mt-1 text-xs text-destructive">{errors.email}</p>
-                  )}
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="phone">Phone number <span className="text-destructive">*</span></Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="+234 801 234 5678"
-                    value={signupData.phone}
-                    onChange={(e) => {
-                      setSignupData({ phone: e.target.value })
-                      clearError("phone")
-                    }}
-                  />
-                  {errors.phone && (
-                    <p className="mt-1 text-xs text-destructive">{errors.phone}</p>
-                  )}
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="password">Password <span className="text-destructive">*</span></Label>
-                  <div className="relative">
+              <form onSubmit={handleSendCode}>
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="business-name">Business name <span className="text-destructive">*</span></Label>
                     <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="At least 8 characters"
-                      value={signupData.password}
+                      id="business-name"
+                      placeholder="Sparkle Wash Laundry"
+                      value={signupData.businessName}
                       onChange={(e) => {
-                        setSignupData({ password: e.target.value })
-                        clearError("password")
+                        setSignupData({ businessName: e.target.value })
+                        clearError("businessName")
                       }}
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((v) => !v)}
-                      className="absolute inset-y-0 right-3 flex items-center text-muted-foreground"
-                    >
-                      {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                    </button>
+                    {errors.businessName && (
+                      <p className="mt-1 text-xs text-destructive">{errors.businessName}</p>
+                    )}
                   </div>
-                  {errors.password && (
-                    <p className="mt-1 text-xs text-destructive">{errors.password}</p>
-                  )}
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="owner-name">Owner full name <span className="text-destructive">*</span></Label>
+                    <Input
+                      id="owner-name"
+                      placeholder="Amara Okonkwo"
+                      value={signupData.ownerName}
+                      onChange={(e) => {
+                        setSignupData({ ownerName: e.target.value })
+                        clearError("ownerName")
+                      }}
+                    />
+                    {errors.ownerName && (
+                      <p className="mt-1 text-xs text-destructive">{errors.ownerName}</p>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="email">Email address <span className="text-destructive">*</span></Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="amara@sparklewash.ng"
+                      value={signupData.email}
+                      onChange={(e) => {
+                        setSignupData({ email: e.target.value })
+                        clearError("email")
+                      }}
+                    />
+                    {errors.email && (
+                      <p className="mt-1 text-xs text-destructive">{errors.email}</p>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="phone">Phone number <span className="text-destructive">*</span></Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="+234 801 234 5678"
+                      value={signupData.phone}
+                      onChange={(e) => {
+                        setSignupData({ phone: e.target.value })
+                        clearError("phone")
+                      }}
+                    />
+                    {errors.phone && (
+                      <p className="mt-1 text-xs text-destructive">{errors.phone}</p>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="password">Password <span className="text-destructive">*</span></Label>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="At least 8 characters"
+                        value={signupData.password}
+                        onChange={(e) => {
+                          setSignupData({ password: e.target.value })
+                          clearError("password")
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        className="absolute inset-y-0 right-3 flex items-center text-muted-foreground"
+                      >
+                        {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                      </button>
+                    </div>
+                    {errors.password && (
+                      <p className="mt-1 text-xs text-destructive">{errors.password}</p>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <Button
-                variant="default"
-                className="mt-6 w-full"
-                onClick={handleSendCode}
-                disabled={isRegistering}
-              >
-                {isRegistering && <Loader2 className="size-4 animate-spin" />}
-                Send verification code
-              </Button>
+                <Button
+                  type="submit"
+                  variant="default"
+                  className="mt-6 w-full"
+                  disabled={isRegistering}
+                >
+                  {isRegistering && <Loader2 className="size-4 animate-spin" />}
+                  Send verification code
+                </Button>
+              </form>
 
               <p className="mt-4 text-center text-sm text-muted-foreground">
                 Already have an account?{" "}
@@ -263,6 +267,7 @@ export default function Page() {
           {signupStep === 2 && (
             <>
               <button
+                type="button"
                 className="mb-6 flex items-center gap-1 text-sm text-muted-foreground"
                 onClick={() => setSignupStep(1)}
               >
@@ -277,23 +282,25 @@ export default function Page() {
                 We sent a 6-digit code to {signupData.email}
               </p>
 
-              <InputOTP maxLength={6} containerClassName="gap-3" value={otp} onChange={setOtp}>
-                {[0, 1, 2, 3, 4, 5].map((i) => (
-                  <InputOTPGroup key={i}>
-                    <InputOTPSlot index={i} className="size-12 text-base" />
-                  </InputOTPGroup>
-                ))}
-              </InputOTP>
+              <form onSubmit={handleVerify}>
+                <InputOTP maxLength={6} containerClassName="gap-3" value={otp} onChange={setOtp}>
+                  {[0, 1, 2, 3, 4, 5].map((i) => (
+                    <InputOTPGroup key={i}>
+                      <InputOTPSlot index={i} className="size-12 text-base" />
+                    </InputOTPGroup>
+                  ))}
+                </InputOTP>
 
-              <Button
-                variant="default"
-                className="mt-6 w-full"
-                onClick={handleVerify}
-                disabled={isVerifying || isLoggingIn}
-              >
-                {(isVerifying || isLoggingIn) && <Loader2 className="size-4 animate-spin" />}
-                Verify & continue
-              </Button>
+                <Button
+                  type="submit"
+                  variant="default"
+                  className="mt-6 w-full"
+                  disabled={isVerifying || isLoggingIn}
+                >
+                  {(isVerifying || isLoggingIn) && <Loader2 className="size-4 animate-spin" />}
+                  Verify & continue
+                </Button>
+              </form>
 
               <p className="mt-4 text-center text-sm text-muted-foreground">
                 Didn&apos;t get a code?{" "}
