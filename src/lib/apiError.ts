@@ -20,3 +20,7 @@ export function getApiErrorMessage(body: unknown, fallback = "Something went wro
 
   return fallback
 }
+
+export function apiError(error: unknown, fallback: string): string {
+  return getApiErrorMessage((error as { data?: unknown })?.data, fallback)
+}
