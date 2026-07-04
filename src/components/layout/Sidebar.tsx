@@ -150,7 +150,7 @@ export default function Sidebar({ collapsed, onToggle, kybStatus }: SidebarProps
     try {
       await logout().unwrap()
       setShowLogoutConfirm(false)
-      router.push("/signup")
+      router.push("/login")
     } catch (error) {
       toast.error(getApiErrorMessage((error as { data?: unknown }).data, "Couldn't log out. Please try again."))
     }

@@ -13,7 +13,7 @@ export function proxy(req: NextRequest) {
 
   if (!refreshToken) {
     const url = req.nextUrl.clone()
-    url.pathname = "/signup"
+    url.pathname = "/login"
     return NextResponse.redirect(url)
   }
 
