@@ -1,7 +1,9 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
+import { toast } from "sonner"
 import {
   LayoutDashboard,
   ClipboardList,
@@ -12,13 +14,26 @@ import {
   Settings,
   HelpCircle,
   LogOut,
+  Loader2,
   ChevronLeft,
   ChevronRight,
   type LucideIcon,
 } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 import { useStore } from "@/lib/mock/store"
+import { useLogoutMutation } from "@/redux/api/authApi"
+import { getApiErrorMessage } from "@/lib/apiError"
 import type { KybStatus } from "@/types"
 
 interface SidebarProps {
@@ -116,6 +131,7 @@ function NavItem({
 
 export default function Sidebar({ collapsed, onToggle, kybStatus }: SidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const businessName =
     useStore((s) => s.signupData.businessName) || "Sparkle Wash Laundry"
   const initials = businessName
@@ -127,9 +143,25 @@ export default function Sidebar({ collapsed, onToggle, kybStatus }: SidebarProps
 
   const kybPill = kybStatus !== "approved" ? KYB_PILL[kybStatus] : null
 
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [logout, { isLoading: isLoggingOut }] = useLogoutMutation()
+
+  const handleLogout = async () => {
+    try {
+      await logout().unwrap()
+      setShowLogoutConfirm(false)
+      router.push("/signup")
+    } catch (error) {
+      toast.error(getApiErrorMessage((error as { data?: unknown }).data, "Couldn't log out. Please try again."))
+    }
+  }
+
   // Sign out — rendered once; label animates with sidebar
   const signOutContent = (
-    <div className="group flex cursor-pointer items-center rounded-lg p-2.5 hover:bg-destructive/10">
+    <div
+      onClick={() => setShowLogoutConfirm(true)}
+      className="group flex cursor-pointer items-center rounded-lg p-2.5 hover:bg-destructive/10"
+    >
       <LogOut className="size-[18px] shrink-0 text-muted-foreground group-hover:text-destructive" />
       <SlideLabel
         collapsed={collapsed}
@@ -255,6 +287,28 @@ export default function Sidebar({ collapsed, onToggle, kybStatus }: SidebarProps
           <ChevronLeft className="size-3 text-muted-foreground" />
         )}
       </button>
+
+      <AlertDialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sign out?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You&apos;ll need to sign in again to access your dashboard.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLoggingOut}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+            >
+              {isLoggingOut && <Loader2 className="size-4 animate-spin" />}
+              Sign out
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
