@@ -10,6 +10,7 @@ import {
   useCreateCategoryMutation,
   useDeleteCategoryMutation,
   useGetItemsQuery,
+  useCreatePriceListItemMutation,
   useUpdatePriceListItemMutation,
   useDeletePriceListItemMutation,
   useToggleItemActiveMutation,
@@ -236,6 +237,7 @@ const EMPTY_FORM: ItemForm = {
 }
 
 function ItemDialog({ open, onOpenChange, item, categories }: ItemDialogProps) {
+  const [createPriceListItem, { isLoading: isCreating }] = useCreatePriceListItemMutation()
   const [updatePriceListItem, { isLoading: isUpdating }] = useUpdatePriceListItemMutation()
 
   const [form, setForm] = useState<ItemForm>(EMPTY_FORM)
@@ -319,9 +321,13 @@ function ItemDialog({ open, onOpenChange, item, categories }: ItemDialogProps) {
         toast.error(apiError(error, "Couldn't update item"))
       }
     } else {
-      // Create-item endpoint isn't wired up yet — UI only for now.
-      toast.info("Adding items isn't connected yet")
-      onOpenChange(false)
+      try {
+        await createPriceListItem(body).unwrap()
+        toast.success("Item added to price list")
+        onOpenChange(false)
+      } catch (error) {
+        toast.error(apiError(error, "Couldn't add item"))
+      }
     }
   }
 
@@ -469,8 +475,8 @@ function ItemDialog({ open, onOpenChange, item, categories }: ItemDialogProps) {
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isEdit && isUpdating}>
-            {isEdit && isUpdating && <Loader2 className="size-4 animate-spin" />}
+          <Button onClick={handleSubmit} disabled={isEdit ? isUpdating : isCreating}>
+            {(isEdit ? isUpdating : isCreating) && <Loader2 className="size-4 animate-spin" />}
             {isEdit ? "Save Changes" : "Add Item"}
           </Button>
         </DialogFooter>
