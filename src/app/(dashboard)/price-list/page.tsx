@@ -30,7 +30,16 @@ import PriceListFilters from "@/components/price-list/PriceListFilters"
 import PriceListTable from "@/components/price-list/PriceListTable"
 
 export default function PriceListPage() {
-  const { data: business, isLoading: businessLoading, isError: businessError, error: businessErrorData } = useGetMyBusinessQuery()
+  const {
+    data: business,
+    isLoading: businessLoading,
+    isFetching: businessFetching,
+    isError: businessError,
+    error: businessErrorData,
+  } = useGetMyBusinessQuery()
+  // Treat any in-flight fetch — not just the first one — as "loading", so a background
+  // refetch on remount doesn't briefly render stale cached data before correcting itself.
+  const isBusinessLoading = businessLoading || businessFetching
   const businessId = business?.id
 
   const [search, setSearch] = useState("")
@@ -48,10 +57,11 @@ export default function PriceListPage() {
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [serviceTypeFilters, setServiceTypeFilters] = useState<ServiceType[]>([])
 
-  const { data: categoriesData, isLoading: categoriesLoading } = useGetCategoriesQuery(
-    businessId ?? "",
-    { skip: !businessId }
-  )
+  const {
+    data: categoriesData,
+    isLoading: categoriesLoading,
+    isFetching: categoriesFetching,
+  } = useGetCategoriesQuery(businessId ?? "", { skip: !businessId })
   const categories = useMemo(() => categoriesData?.[0]?.categories ?? [], [categoriesData])
   const categoryNameById = useMemo(
     () => Object.fromEntries(categories.map((c) => [c.id, c.name])),
@@ -154,7 +164,7 @@ export default function PriceListPage() {
         </div>
       </div>
 
-      {businessError && !businessLoading ? (
+      {businessError && !isBusinessLoading ? (
         <div className="rounded-xl border border-dashed border-border p-12 text-center">
           <p className="text-sm text-muted-foreground">
             {apiError(businessErrorData, "We couldn't load your business details.")}
@@ -164,7 +174,7 @@ export default function PriceListPage() {
       ) : (
         <>
           <PriceListFilters
-            loading={businessLoading}
+            loading={isBusinessLoading}
             search={search}
             onSearchChange={setSearch}
             categories={categories}
@@ -175,7 +185,7 @@ export default function PriceListPage() {
           />
 
           <PriceListTable
-            loading={businessLoading || itemsLoading || itemsFetching || categoriesLoading}
+            loading={isBusinessLoading || itemsLoading || itemsFetching || categoriesLoading || categoriesFetching}
             error={itemsError}
             items={filtered}
             isFiltered={isFiltered}
