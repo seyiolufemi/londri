@@ -22,6 +22,7 @@ import {
   useLoginOwnerMutation,
 } from "@/redux/api/authApi"
 import { getApiErrorMessage } from "@/lib/apiError"
+import { normalizeNigerianPhone } from "@/lib/phone"
 
 interface FormErrors {
   businessName?: string
@@ -66,15 +67,10 @@ export default function Page() {
       next.email = "Enter a valid email address"
     }
 
-    const normalized = signupData.phone.trim().replace(/\s/g, "")
-    const digits = signupData.phone.replace(/\D/g, "")
     if (!signupData.phone.trim()) {
       next.phone = "Phone number is required"
-    } else if (
-      (!normalized.startsWith("+234") && !normalized.startsWith("0")) ||
-      digits.length < 11
-    ) {
-      next.phone = "Must start with +234 or 0 and be at least 11 digits"
+    } else if (!/^\+234\d{10}$/.test(normalizeNigerianPhone(signupData.phone))) {
+      next.phone = "Enter a valid Nigerian phone number"
     }
 
     if (!signupData.password) {
@@ -91,12 +87,15 @@ export default function Page() {
     e.preventDefault()
     if (!validateStep1()) return
 
+    const normalizedPhone = normalizeNigerianPhone(signupData.phone)
+    if (normalizedPhone !== signupData.phone) setSignupData({ phone: normalizedPhone })
+
     try {
       await registerOwner({
         name: signupData.ownerName,
         email: signupData.email,
         password: signupData.password,
-        phone: signupData.phone,
+        phone: normalizedPhone,
       }).unwrap()
 
       toast.success("Verification code sent to your email")
@@ -214,6 +213,7 @@ export default function Page() {
                         setSignupData({ phone: e.target.value })
                         clearError("phone")
                       }}
+                      onBlur={(e) => setSignupData({ phone: normalizeNigerianPhone(e.target.value) })}
                     />
                     {errors.phone && (
                       <p className="mt-1 text-xs text-destructive">{errors.phone}</p>
