@@ -199,6 +199,7 @@ export default function ItemDialog({ open, onOpenChange, item, categories }: Ite
               <Select
                 value={form.categoryId}
                 onValueChange={(v) => setField("categoryId", v)}
+                disabled={categories.length === 0}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
@@ -211,9 +212,13 @@ export default function ItemDialog({ open, onOpenChange, item, categories }: Ite
                   ))}
                 </SelectContent>
               </Select>
-              {errors.categoryId && (
+              {categories.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No categories yet — add one via &quot;Manage Categories&quot; first.
+                </p>
+              ) : errors.categoryId ? (
                 <p className="text-xs text-destructive">{errors.categoryId}</p>
-              )}
+              ) : null}
             </div>
 
             <div className="space-y-1.5">
