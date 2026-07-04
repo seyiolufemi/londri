@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { backendFetch } from "@/lib/api"
+import { backendFetch, parseJsonSafe } from "@/lib/api"
 
 export async function proxyAuthed(req: NextRequest, path: string, init: RequestInit = {}) {
   const accessToken = req.cookies.get("access_token")?.value
@@ -13,6 +13,6 @@ export async function proxyAuthed(req: NextRequest, path: string, init: RequestI
     headers: { Authorization: `Bearer ${accessToken}` },
   })
 
-  const data = await backendRes.json()
+  const data = await parseJsonSafe(backendRes)
   return NextResponse.json(data, { status: backendRes.status })
 }
