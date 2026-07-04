@@ -255,7 +255,7 @@ export default function Page() {
 
               <p className="mt-4 text-center text-sm text-muted-foreground">
                 Already have an account?{" "}
-                <span className="cursor-pointer text-primary">Sign in</span>
+                <Link href="/login" className="text-primary">Sign in</Link>
               </p>
             </>
           )}
