@@ -1,4 +1,5 @@
-import type { SubscriptionPlan, CustomerSubscription } from "@/types"
+import type { CustomerSubscription } from "@/types"
+import type { SubscriptionPlan } from "@/redux/api/catalogApi"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 import StatusBadge from "./StatusBadge"
 import UsageBar from "./UsageBar"
