@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import AnimatedPanel from "@/components/auth/AnimatedPanel"
+import { useAppDispatch } from "@/hooks/redux"
+import { apiManager } from "@/redux/apiManager"
 import { useLoginOwnerMutation } from "@/redux/api/authApi"
 import { getApiErrorMessage } from "@/lib/apiError"
 
@@ -19,6 +21,7 @@ interface FormErrors {
 
 export default function Page() {
   const router = useRouter()
+  const dispatch = useAppDispatch()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -45,6 +48,7 @@ export default function Page() {
 
     try {
       await loginOwner({ email, password }).unwrap()
+      dispatch(apiManager.util.resetApiState())
       toast.success("Welcome back")
       router.push("/overview")
     } catch (error) {

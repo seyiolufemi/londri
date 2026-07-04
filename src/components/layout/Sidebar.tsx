@@ -32,6 +32,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 import { useStore } from "@/lib/mock/store"
+import { useAppDispatch } from "@/hooks/redux"
+import { apiManager } from "@/redux/apiManager"
 import { useLogoutMutation } from "@/redux/api/authApi"
 import { getApiErrorMessage } from "@/lib/apiError"
 import type { KybStatus } from "@/types"
@@ -132,6 +134,7 @@ function NavItem({
 export default function Sidebar({ collapsed, onToggle, kybStatus }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
+  const dispatch = useAppDispatch()
   const businessName =
     useStore((s) => s.signupData.businessName) || "Sparkle Wash Laundry"
   const initials = businessName
@@ -149,6 +152,7 @@ export default function Sidebar({ collapsed, onToggle, kybStatus }: SidebarProps
   const handleLogout = async () => {
     try {
       await logout().unwrap()
+      dispatch(apiManager.util.resetApiState())
       setShowLogoutConfirm(false)
       router.push("/login")
     } catch (error) {
