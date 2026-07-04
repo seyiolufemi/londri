@@ -13,6 +13,8 @@ import type {
   CustomerSubscription,
   KybStatus,
   OrderStatus,
+  Payout,
+  PayoutStatus,
 } from "@/types"
 import {
   businesses as initialBusinesses,
@@ -24,6 +26,7 @@ import {
   orderStatusEvents as initialOrderStatusEvents,
   transactions as initialTransactions,
   itemCategories as initialItemCategories,
+  payouts as initialPayouts,
 } from "./data"
 
 export interface SignupFormData {
@@ -72,6 +75,14 @@ interface StoreState {
   orderStatusEvents: OrderStatusEvent[]
   transactions: Transaction[]
   itemCategories: string[]
+  payouts: Payout[]
+
+  availableBalance: number
+  totalPaidOut: number
+
+  businessBankName: string
+  businessAccountNumber: string
+  businessAccountName: string
 
   setBusinesses: (businesses: Business[]) => void
   setKybSubmissions: (submissions: KybSubmission[]) => void
@@ -94,12 +105,18 @@ interface StoreState {
   addOrder: (order: Order) => void
   addOrderStatusEvent: (event: OrderStatusEvent) => void
   updateOrderStatus: (orderId: string, newStatus: OrderStatus) => void
-  updateOrderPaymentStatus: (orderId: string, paymentStatus: "paid" | "unpaid") => void
+  updateOrderPaymentStatus: (orderId: string, paymentStatus: "paid" | "unpaid" | "refunded") => void
   addTransaction: (transaction: Transaction) => void
+  resolveTransaction: (id: string, note: string) => void
+
   addPriceListItem: (item: PriceListItem) => void
   updatePriceListItem: (id: string, updates: Partial<PriceListItem>) => void
   deletePriceListItem: (id: string) => void
   togglePriceListItemActive: (id: string) => void
+
+  addPayout: (payout: Payout) => void
+  updatePayoutStatus: (id: string, status: PayoutStatus) => void
+  addToTotalPaidOut: (amount: number) => void
 }
 
 const EMPTY_KYB_DATA: KybFormData = {
@@ -133,6 +150,14 @@ export const useStore = create<StoreState>()(
   orderStatusEvents: initialOrderStatusEvents,
   transactions: initialTransactions,
   itemCategories: initialItemCategories,
+  payouts: initialPayouts,
+
+  availableBalance: 340000,
+  totalPaidOut: 1850000,
+
+  businessBankName: "GTBank",
+  businessAccountNumber: "0123456789",
+  businessAccountName: "AMARA OKONKWO",
 
   setBusinesses: (businesses) => set({ businesses }),
   setKybSubmissions: (kybSubmissions) => set({ kybSubmissions }),
@@ -221,6 +246,13 @@ export const useStore = create<StoreState>()(
   addTransaction: (transaction) =>
     set((state) => ({ transactions: [transaction, ...state.transactions] })),
 
+  resolveTransaction: (id, note) =>
+    set((state) => ({
+      transactions: state.transactions.map((t) =>
+        t.id === id ? { ...t, matchStatus: "matched", resolutionNote: note } : t
+      ),
+    })),
+
   addPriceListItem: (item) =>
     set((state) => ({ priceListItems: [...state.priceListItems, item] })),
 
@@ -240,6 +272,20 @@ export const useStore = create<StoreState>()(
         p.id === id ? { ...p, isActive: !p.isActive } : p
       ),
     })),
+
+  addPayout: (payout) =>
+    set((state) => ({
+      payouts: [payout, ...state.payouts],
+      availableBalance: state.availableBalance - payout.amount,
+    })),
+
+  updatePayoutStatus: (id, status) =>
+    set((state) => ({
+      payouts: state.payouts.map((p) => (p.id === id ? { ...p, status } : p)),
+    })),
+
+  addToTotalPaidOut: (amount) =>
+    set((state) => ({ totalPaidOut: state.totalPaidOut + amount })),
     }),
     {
       name: "londri-kyb-progress",

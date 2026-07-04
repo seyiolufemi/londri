@@ -11,8 +11,10 @@ import {
   Plus,
   ClipboardList,
   Tag,
+  Wallet,
   type LucideIcon,
 } from "lucide-react"
+import WithdrawDialog from "@/components/shared/WithdrawDialog"
 import {
   BarChart,
   Bar,
@@ -205,6 +207,7 @@ export default function OverviewPage() {
   const router = useRouter()
   const { kybStatus } = useKybStatus()
   const [dateFilter, setDateFilter] = useState<DateFilter>("this_month")
+  const [withdrawOpen, setWithdrawOpen] = useState(false)
 
   const transactions = useStore((s) => s.transactions)
   const orders = useStore((s) => s.orders)
@@ -383,9 +386,18 @@ export default function OverviewPage() {
               locked={locked}
               onClick={locked ? handleLockedAction : () => router.push("/price-list")}
             />
+            <QuickAction
+              label="Withdraw Balance"
+              description="Transfer your available balance to your bank"
+              icon={Wallet}
+              locked={locked}
+              onClick={locked ? handleLockedAction : () => setWithdrawOpen(true)}
+            />
           </div>
         </div>
       </div>
+
+      <WithdrawDialog open={withdrawOpen} onOpenChange={setWithdrawOpen} />
 
       {/* Recent Orders */}
       <div className="rounded-xl border border-border bg-background">

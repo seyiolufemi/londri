@@ -1,9 +1,10 @@
 export type KybStatus = "pending" | "under_review" | "approved" | "rejected"
 export type OrderStatus = "requested" | "confirmed" | "picked_up" | "in_progress" | "ready" | "completed" | "cancelled"
 export type OrderChannel = "online" | "walk_in" | "subscription"
-export type PaymentStatus = "paid" | "unpaid"
+export type PaymentStatus = "paid" | "unpaid" | "refunded"
 export type TransactionType = "payment" | "refund" | "payout" | "subscription"
 export type TransactionStatus = "successful" | "pending" | "failed"
+export type PayoutStatus = "processing" | "completed" | "failed"
 export type SubscriptionStatus = "active" | "paused" | "expired" | "cancelled"
 export type PriceCategory = "clothing" | "bedding" | "household" | "specialty"
 export type ServiceType = "wash" | "dry_clean" | "iron"
@@ -124,5 +125,17 @@ export interface Transaction {
   status: TransactionStatus
   channel: "card" | "bank_transfer" | "ussd" | "cash"
   description: string
+  matchStatus: "matched" | "unmatched"
+  resolutionNote: string | null
+  createdAt: string
+}
+
+export interface Payout {
+  id: string
+  businessId: string
+  amount: number
+  status: PayoutStatus
+  bankReference: string
+  period: string
   createdAt: string
 }

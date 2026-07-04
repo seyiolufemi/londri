@@ -7,6 +7,7 @@ import type {
   OrderStatusEvent,
   Transaction,
   CustomerSubscription,
+  Payout,
 } from "@/types"
 
 export const businesses: Business[] = [
@@ -463,6 +464,8 @@ export const transactions: Transaction[] = [
     status: "successful",
     channel: "card",
     description: "Payment for order LDR-20260601-0001",
+    matchStatus: "matched",
+    resolutionNote: null,
     createdAt: "2026-06-01T08:05:00Z",
   },
   {
@@ -475,6 +478,8 @@ export const transactions: Transaction[] = [
     status: "successful",
     channel: "card",
     description: "Standard plan subscription - June 2026",
+    matchStatus: "matched",
+    resolutionNote: null,
     createdAt: "2026-06-01T00:01:00Z",
   },
   {
@@ -487,6 +492,8 @@ export const transactions: Transaction[] = [
     status: "successful",
     channel: "bank_transfer",
     description: "Payment for order LDR-20260615-0002",
+    matchStatus: "matched",
+    resolutionNote: null,
     createdAt: "2026-06-15T09:05:00Z",
   },
   {
@@ -499,6 +506,8 @@ export const transactions: Transaction[] = [
     status: "successful",
     channel: "card",
     description: "Payment for order LDR-20260618-0003",
+    matchStatus: "matched",
+    resolutionNote: null,
     createdAt: "2026-06-18T07:35:00Z",
   },
   {
@@ -511,6 +520,8 @@ export const transactions: Transaction[] = [
     status: "pending",
     channel: "ussd",
     description: "Payment for order LDR-20260620-0004",
+    matchStatus: "unmatched",
+    resolutionNote: null,
     createdAt: "2026-06-20T10:05:00Z",
   },
   {
@@ -523,6 +534,38 @@ export const transactions: Transaction[] = [
     status: "successful",
     channel: "bank_transfer",
     description: "Partial refund - damaged item claim",
+    matchStatus: "unmatched",
+    resolutionNote: null,
     createdAt: "2026-06-10T13:00:00Z",
+  },
+]
+
+export const payouts: Payout[] = [
+  {
+    id: "payout_001",
+    businessId: "biz_001",
+    amount: 500000,
+    status: "completed",
+    bankReference: "NMB-391047",
+    period: "June 2026",
+    createdAt: "2026-06-30T14:00:00Z",
+  },
+  {
+    id: "payout_002",
+    businessId: "biz_001",
+    amount: 750000,
+    status: "completed",
+    bankReference: "NMB-284736",
+    period: "May 2026",
+    createdAt: "2026-05-31T10:30:00Z",
+  },
+  {
+    id: "payout_003",
+    businessId: "biz_001",
+    amount: 600000,
+    status: "completed",
+    bankReference: "NMB-193847",
+    period: "April 2026",
+    createdAt: "2026-04-30T11:00:00Z",
   },
 ]

@@ -168,7 +168,7 @@ interface PlanDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   editingPlan: SubscriptionPlan | null
-  uniqueCategories: PriceCategory[]
+  itemCategories: string[]
   onSave: (form: PlanFormState) => void
 }
 
@@ -176,7 +176,7 @@ function PlanDialog({
   open,
   onOpenChange,
   editingPlan,
-  uniqueCategories,
+  itemCategories,
   onSave,
 }: PlanDialogProps) {
   const [form, setForm] = useState<PlanFormState>(EMPTY_FORM)
@@ -337,21 +337,24 @@ function PlanDialog({
           <div>
             <Label className="mb-2 block text-sm">Eligible categories</Label>
             <div className="flex flex-wrap gap-3">
-              {uniqueCategories.map((cat) => (
-                <label
-                  key={cat}
-                  className="flex cursor-pointer items-center gap-2"
-                >
-                  <Checkbox
-                    id={`cat-${cat}`}
-                    checked={form.categories.includes(cat)}
-                    onCheckedChange={() => toggleCategory(cat)}
-                  />
-                  <span className="text-sm text-foreground">
-                    {CATEGORY_LABELS[cat]}
-                  </span>
-                </label>
-              ))}
+              {itemCategories.map((catLabel) => {
+                const cat = catLabel.toLowerCase() as PriceCategory
+                return (
+                  <label
+                    key={cat}
+                    className="flex cursor-pointer items-center gap-2"
+                  >
+                    <Checkbox
+                      id={`cat-${cat}`}
+                      checked={form.categories.includes(cat)}
+                      onCheckedChange={() => toggleCategory(cat)}
+                    />
+                    <span className="text-sm text-foreground">
+                      {catLabel}
+                    </span>
+                  </label>
+                )
+              })}
             </div>
             {errors.categories && (
               <p className="mt-1 text-xs text-destructive">{errors.categories}</p>
@@ -512,7 +515,7 @@ export default function SubscriptionsPage() {
 
   const subscriptionPlans = useStore((s) => s.subscriptionPlans)
   const customerSubscriptions = useStore((s) => s.customerSubscriptions)
-  const priceListItems = useStore((s) => s.priceListItems)
+  const itemCategories = useStore((s) => s.itemCategories)
   const addSubscriptionPlan = useStore((s) => s.addSubscriptionPlan)
   const updateSubscriptionPlan = useStore((s) => s.updateSubscriptionPlan)
   const deleteSubscriptionPlan = useStore((s) => s.deleteSubscriptionPlan)
@@ -521,12 +524,6 @@ export default function SubscriptionsPage() {
   const locked = kybStatus !== "approved"
 
   // ── Derived ──
-  const uniqueCategories = useMemo(
-    () =>
-      Array.from(new Set(priceListItems.map((i) => i.category))) as PriceCategory[],
-    [priceListItems]
-  )
-
   const activeSubsByPlan = useMemo(() => {
     const counts: Record<string, number> = {}
     customerSubscriptions.forEach((s) => {
@@ -890,7 +887,7 @@ export default function SubscriptionsPage() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         editingPlan={editingPlan}
-        uniqueCategories={uniqueCategories}
+        itemCategories={itemCategories}
         onSave={handleSavePlan}
       />
 

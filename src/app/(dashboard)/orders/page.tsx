@@ -9,6 +9,7 @@ import {
   X,
   MessageCircle,
   XCircle,
+  Undo2,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useStore } from "@/lib/mock/store"
@@ -48,13 +49,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import type { Order, OrderStatus, OrderStatusEvent } from "@/types"
+import type { Order, OrderStatus, OrderStatusEvent, Transaction } from "@/types"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type StatusFilter = "all" | OrderStatus
 type ChannelFilter = "all" | "online" | "walk_in" | "subscription"
-type PaymentFilter = "all" | "paid" | "unpaid"
+type PaymentFilter = "all" | "paid" | "unpaid" | "refunded"
 type DateRangeFilter = "all" | "today" | "this_week" | "this_month"
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -103,6 +104,7 @@ const CHANNEL_CONFIG = {
 const PAYMENT_CONFIG = {
   paid: { label: "Paid", className: "bg-green-50 text-green-600" },
   unpaid: { label: "Unpaid", className: "bg-amber-50 text-amber-600" },
+  refunded: { label: "Refunded", className: "bg-muted text-muted-foreground" },
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -132,7 +134,7 @@ function ChannelBadge({ channel }: { channel: "online" | "walk_in" | "subscripti
   )
 }
 
-function PaymentBadge({ status }: { status: "paid" | "unpaid" }) {
+function PaymentBadge({ status }: { status: "paid" | "unpaid" | "refunded" }) {
   const cfg = PAYMENT_CONFIG[status]
   return (
     <span
@@ -154,6 +156,7 @@ interface PanelProps {
   onAdvanceStatus: () => void
   onCancelRequest: () => void
   onSimulatePayment: () => void
+  onRefundRequest: () => void
   onWhatsApp: (action: string) => void
 }
 
@@ -163,6 +166,7 @@ function OrderDetailPanel({
   onAdvanceStatus,
   onCancelRequest,
   onSimulatePayment,
+  onRefundRequest,
   onWhatsApp,
 }: PanelProps) {
   const nextActionLabel = NEXT_ACTION_LABEL[order.status]
@@ -245,6 +249,17 @@ function OrderDetailPanel({
           {order.paymentStatus === "unpaid" && (
             <Button variant="outline" size="sm" onClick={onSimulatePayment}>
               Simulate Payment Received
+            </Button>
+          )}
+          {order.paymentStatus === "paid" && order.status !== "cancelled" && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              onClick={onRefundRequest}
+            >
+              <Undo2 className="mr-1.5 size-3.5" />
+              Refund
             </Button>
           )}
         </div>
@@ -417,8 +432,10 @@ export default function OrdersPage() {
   const { kybStatus } = useKybStatus()
   const orders = useStore((s) => s.orders)
   const orderStatusEvents = useStore((s) => s.orderStatusEvents)
+  const transactions = useStore((s) => s.transactions)
   const updateOrderStatus = useStore((s) => s.updateOrderStatus)
   const updateOrderPaymentStatus = useStore((s) => s.updateOrderPaymentStatus)
+  const addTransaction = useStore((s) => s.addTransaction)
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
@@ -431,6 +448,7 @@ export default function OrdersPage() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [cancelAlertOpen, setCancelAlertOpen] = useState(false)
+  const [refundAlertOpen, setRefundAlertOpen] = useState(false)
 
   const selectedOrder = selectedOrderId
     ? (orders.find((o) => o.id === selectedOrderId) ?? null)
@@ -539,6 +557,35 @@ export default function OrdersPage() {
     toast.success(`Payment received \u2014 ${formatNaira(selectedOrder.totalAmount)}`)
   }
 
+  function handleRefund() {
+    if (!selectedOrder) return
+    const originalTxn = transactions.find(
+      (t) => t.orderId === selectedOrder.id && t.type === "payment"
+    )
+    const channel = originalTxn?.channel ?? "bank_transfer"
+    updateOrderPaymentStatus(selectedOrder.id, "refunded")
+    const randomRef = Math.floor(100000 + Math.random() * 900000).toString()
+    const newTxn: Transaction = {
+      id: `txn_${Date.now()}`,
+      reference: `RFD-${randomRef}`,
+      orderId: selectedOrder.id,
+      customerName: selectedOrder.customerName,
+      type: "refund",
+      amount: selectedOrder.totalAmount,
+      status: "successful",
+      channel,
+      description: `Refund for ${selectedOrder.reference}`,
+      matchStatus: "matched",
+      resolutionNote: null,
+      createdAt: new Date().toISOString(),
+    }
+    addTransaction(newTxn)
+    setRefundAlertOpen(false)
+    toast.success(`Refund issued — ${formatNaira(selectedOrder.totalAmount)}`, {
+      description: selectedOrder.reference,
+    })
+  }
+
   function handleWhatsApp(action: string) {
     toast.success("Message sent via WhatsApp", { description: action })
   }
@@ -618,6 +665,7 @@ export default function OrdersPage() {
             <SelectItem value="all">All Payments</SelectItem>
             <SelectItem value="paid">Paid</SelectItem>
             <SelectItem value="unpaid">Unpaid</SelectItem>
+            <SelectItem value="refunded">Refunded</SelectItem>
           </SelectContent>
         </Select>
 
@@ -764,11 +812,33 @@ export default function OrdersPage() {
               onAdvanceStatus={handleAdvanceStatus}
               onCancelRequest={() => setCancelAlertOpen(true)}
               onSimulatePayment={handleSimulatePayment}
+              onRefundRequest={() => setRefundAlertOpen(true)}
               onWhatsApp={handleWhatsApp}
             />
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Refund confirmation */}
+      <AlertDialog open={refundAlertOpen} onOpenChange={setRefundAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Refund this order?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will refund {selectedOrder ? formatNaira(selectedOrder.totalAmount) : ""} to the customer. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleRefund}
+            >
+              Refund {selectedOrder ? formatNaira(selectedOrder.totalAmount) : ""}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Cancel confirmation */}
       <AlertDialog open={cancelAlertOpen} onOpenChange={setCancelAlertOpen}>
