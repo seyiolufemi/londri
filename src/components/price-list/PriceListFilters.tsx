@@ -1,9 +1,8 @@
 "use client"
 
 import { Search, ChevronDown } from "lucide-react"
-import type { ServiceType } from "@/types"
 import type { Category } from "@/redux/api/catalogApi"
-import { ALL_SERVICE_TYPES, SERVICE_TYPE_LABELS } from "./constants"
+import { ALL_SERVICE_TYPES, type PriceListServiceType } from "./constants"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -28,8 +27,8 @@ interface PriceListFiltersProps {
   categories: Category[]
   categoryFilter: string
   onCategoryFilterChange: (value: string) => void
-  serviceTypeFilters: ServiceType[]
-  onToggleServiceTypeFilter: (type: ServiceType) => void
+  serviceTypeFilters: PriceListServiceType[]
+  onToggleServiceTypeFilter: (type: PriceListServiceType) => void
 }
 
 export default function PriceListFilters({
@@ -109,7 +108,7 @@ export default function PriceListFilters({
                   htmlFor={`filter-svc-${type}`}
                   className="cursor-pointer text-sm"
                 >
-                  {SERVICE_TYPE_LABELS[type]}
+                  {type}
                 </label>
               </div>
             ))}

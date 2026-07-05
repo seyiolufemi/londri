@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
-import type { ServiceType } from "@/types"
 import {
   useCreatePriceListItemMutation,
   useUpdatePriceListItemMutation,
@@ -12,7 +11,7 @@ import {
   type UpdatePriceListItemRequest,
 } from "@/redux/api/catalogApi"
 import { apiError } from "@/lib/apiError"
-import { ALL_SERVICE_TYPES, SERVICE_TYPE_LABELS } from "./constants"
+import { ALL_SERVICE_TYPES, type PriceListServiceType } from "./constants"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -44,7 +43,7 @@ interface ItemDialogProps {
 interface ItemForm {
   name: string
   categoryId: string
-  serviceTypes: ServiceType[]
+  serviceTypes: PriceListServiceType[]
   unit: string
   price: string
   turnaroundHours: string
@@ -88,7 +87,7 @@ export default function ItemDialog({ open, onOpenChange, item, categories }: Ite
           name: item.name,
           categoryId: item.category_id,
           // API returns service_types as string[]; the checkbox UI only ever writes ALL_SERVICE_TYPES values back
-          serviceTypes: item.service_types as ServiceType[],
+          serviceTypes: item.service_types as PriceListServiceType[],
           unit: item.unit,
           price: String(item.price),
           turnaroundHours: String(item.turnaround_hours),
@@ -106,7 +105,7 @@ export default function ItemDialog({ open, onOpenChange, item, categories }: Ite
     setErrors((prev) => ({ ...prev, [key]: undefined }))
   }
 
-  function toggleServiceType(type: ServiceType) {
+  function toggleServiceType(type: PriceListServiceType) {
     setForm((prev) => ({
       ...prev,
       serviceTypes: prev.serviceTypes.includes(type)
@@ -231,8 +230,8 @@ export default function ItemDialog({ open, onOpenChange, item, categories }: Ite
                   <SelectValue placeholder="Select unit" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="per item">Per Item</SelectItem>
-                  <SelectItem value="per kg">Per Kg</SelectItem>
+                  <SelectItem value="Per Item">Per Item</SelectItem>
+                  <SelectItem value="Per Kg">Per Kg</SelectItem>
                 </SelectContent>
               </Select>
               {errors.unit && (
@@ -255,7 +254,7 @@ export default function ItemDialog({ open, onOpenChange, item, categories }: Ite
                     htmlFor={`svc-${type}`}
                     className="cursor-pointer text-sm text-foreground"
                   >
-                    {SERVICE_TYPE_LABELS[type]}
+                    {type}
                   </label>
                 </div>
               ))}

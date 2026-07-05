@@ -1,9 +1,8 @@
 "use client"
 
 import { Pencil, Trash2, Loader2 } from "lucide-react"
-import type { ServiceType } from "@/types"
 import type { PriceListItem } from "@/redux/api/catalogApi"
-import { SERVICE_TYPE_LABELS, formatNaira } from "./constants"
+import { formatNaira } from "./constants"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -128,7 +127,7 @@ export default function PriceListTable({
                         key={type}
                         className="rounded-md bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400"
                       >
-                        {SERVICE_TYPE_LABELS[type as ServiceType] ?? type}
+                        {type}
                       </span>
                     ))}
                   </div>

@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react"
 import { Plus, Tags, Loader2 } from "lucide-react"
 import { toast } from "sonner"
-import type { ServiceType } from "@/types"
+import type { PriceListServiceType } from "@/components/price-list/constants"
 import { useGetMyBusinessQuery } from "@/redux/api/businessApi"
 import {
   useGetCategoriesQuery,
@@ -55,7 +55,7 @@ export default function PriceListPage() {
   }, [search])
 
   const [categoryFilter, setCategoryFilter] = useState("all")
-  const [serviceTypeFilters, setServiceTypeFilters] = useState<ServiceType[]>([])
+  const [serviceTypeFilters, setServiceTypeFilters] = useState<PriceListServiceType[]>([])
 
   const { data: categoriesData, isLoading: categoriesLoading } = useGetCategoriesQuery(
     businessId ?? "",
@@ -110,7 +110,7 @@ export default function PriceListPage() {
   const [editingItem, setEditingItem] = useState<PriceListItem | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<PriceListItem | null>(null)
 
-  function toggleServiceTypeFilter(type: ServiceType) {
+  function toggleServiceTypeFilter(type: PriceListServiceType) {
     setServiceTypeFilters((prev) =>
       prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
     )
