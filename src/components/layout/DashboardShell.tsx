@@ -6,12 +6,25 @@ import { AlertCircle, Clock } from "lucide-react"
 import Sidebar from "@/components/layout/Sidebar"
 import Header from "@/components/layout/Header"
 import DemoToggle from "@/components/layout/DemoToggle"
-import { useKybStatus } from "@/lib/hooks/useKybStatus"
+import { useGetMyBusinessQuery } from "@/redux/api/businessApi"
+import type { KybStatus } from "@/types"
+
+// Backend only confirmed to return "verified" for the success case so far;
+// "rejected" is inferred from naming, everything else buckets to "pending".
+// While the business hasn't loaded yet, report "approved" so no banner/pill
+// flashes before we actually know the real status.
+function toKybStatus(current: string | undefined, isLoading: boolean): KybStatus {
+  if (isLoading || current === undefined) return "approved"
+  if (current === "verified") return "approved"
+  if (current === "rejected") return "rejected"
+  return "pending"
+}
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const { kybStatus } = useKybStatus()
+  const { data: business, isLoading: businessLoading } = useGetMyBusinessQuery()
+  const kybStatus = toKybStatus(business?.current_kyb_status, businessLoading)
 
   return (
     <div className="flex h-screen overflow-hidden">

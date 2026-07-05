@@ -38,7 +38,7 @@ export default function SubscriptionsPage() {
   } = useGetMyBusinessQuery()
   const isBusinessLoading = businessLoading || businessFetching
   const businessId = business?.id
-  const locked = business?.current_kyb_status !== "approved"
+  const locked = business?.current_kyb_status !== "verified"
 
   const {
     data: categoriesData,
