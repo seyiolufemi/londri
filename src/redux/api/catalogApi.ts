@@ -64,7 +64,8 @@ export interface SubscriptionPlan {
   price: number
   billing_cycle: string
   item_cap: number
-  eligible_category_ids: string[]
+  // Real GET responses return category names here, not the ids the docs showed.
+  eligible_categories: string[]
   cancel_policy: string
   is_active: boolean
   created_at: string
