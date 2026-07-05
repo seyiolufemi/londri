@@ -57,11 +57,10 @@ export default function PriceListPage() {
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [serviceTypeFilters, setServiceTypeFilters] = useState<ServiceType[]>([])
 
-  const {
-    data: categoriesData,
-    isLoading: categoriesLoading,
-    isFetching: categoriesFetching,
-  } = useGetCategoriesQuery(businessId ?? "", { skip: !businessId })
+  const { data: categoriesData, isLoading: categoriesLoading } = useGetCategoriesQuery(
+    businessId ?? "",
+    { skip: !businessId }
+  )
   const categories = useMemo(() => categoriesData ?? [], [categoriesData])
   const categoryNameById = useMemo(
     () => Object.fromEntries(categories.map((c) => [c.id, c.name])),
@@ -71,7 +70,6 @@ export default function PriceListPage() {
   const {
     data: items = [],
     isLoading: itemsLoading,
-    isFetching: itemsFetching,
     isError: itemsError,
   } = useGetItemsQuery(
     {
@@ -97,6 +95,7 @@ export default function PriceListPage() {
     setTogglingId(item.id)
     try {
       await toggleItemActive(item.id).unwrap()
+      toast.success(`"${item.name}" is now ${item.is_active ? "inactive" : "active"}`)
     } catch (error) {
       toast.error(apiError(error, "Couldn't update item"))
     } finally {
@@ -185,7 +184,7 @@ export default function PriceListPage() {
           />
 
           <PriceListTable
-            loading={isBusinessLoading || itemsLoading || itemsFetching || categoriesLoading || categoriesFetching}
+            loading={isBusinessLoading || itemsLoading || categoriesLoading}
             error={itemsError}
             items={filtered}
             isFiltered={isFiltered}
