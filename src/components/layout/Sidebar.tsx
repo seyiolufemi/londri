@@ -12,7 +12,6 @@ import {
   ArrowLeftRight,
   UserCircle,
   Settings,
-  HelpCircle,
   LogOut,
   Loader2,
   ChevronLeft,
@@ -59,7 +58,6 @@ const MAIN_NAV: NavEntry[] = [
 const BOTTOM_NAV: NavEntry[] = [
   { label: "Profile", icon: UserCircle, href: "/profile" },
   { label: "Settings", icon: Settings, href: "/settings" },
-  { label: "Help", icon: HelpCircle, href: "/help" },
 ]
 
 const KYB_PILL: Partial<Record<KybStatus, { label: string; className: string }>> = {
@@ -214,7 +212,7 @@ export default function Sidebar({ collapsed, onToggle, kybStatus }: SidebarProps
               key={item.href}
               {...item}
               collapsed={collapsed}
-              active={pathname === item.href}
+              active={pathname === item.href || pathname.startsWith(item.href + "/")}
             />
           ))}
 

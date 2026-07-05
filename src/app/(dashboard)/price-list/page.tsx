@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { useStore } from "@/lib/mock/store"
 import { useKybStatus } from "@/lib/hooks/useKybStatus"
 import type { PriceListItem, ServiceType, PriceCategory } from "@/types"
+import TablePagination, { paginate } from "@/components/shared/TablePagination"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -58,6 +59,7 @@ import {
 import { cn } from "@/lib/utils"
 
 const ALL_SERVICE_TYPES: ServiceType[] = ["wash", "dry_clean", "iron"]
+const PAGE_SIZE = 10
 
 const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
   wash: "Wash",
@@ -472,16 +474,21 @@ export default function PriceListPage() {
   const [search, setSearch] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [serviceTypeFilters, setServiceTypeFilters] = useState<ServiceType[]>([])
+  const [currentPage, setCurrentPage] = useState(1)
 
   const [manageCategoriesOpen, setManageCategoriesOpen] = useState(false)
   const [itemDialogOpen, setItemDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<PriceListItem | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<PriceListItem | null>(null)
 
+  function handleSearch(v: string) { setSearch(v); setCurrentPage(1) }
+  function handleCategoryFilter(v: string) { setCategoryFilter(v); setCurrentPage(1) }
+
   function toggleServiceTypeFilter(type: ServiceType) {
     setServiceTypeFilters((prev) =>
       prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
     )
+    setCurrentPage(1)
   }
 
   const filtered = useMemo(() => {
@@ -499,6 +506,8 @@ export default function PriceListPage() {
     })
   }, [priceListItems, search, categoryFilter, serviceTypeFilters])
 
+  const pagedItems = paginate(filtered, currentPage, PAGE_SIZE)
+
   function handleAddItem() {
     if (!isApproved) {
       toast.warning("Verification required", {
@@ -511,8 +520,34 @@ export default function PriceListPage() {
   }
 
   function handleEditItem(item: PriceListItem) {
+    if (!isApproved) {
+      toast.warning("Verification required", {
+        description: "Complete KYB verification to manage your price list.",
+      })
+      return
+    }
     setEditingItem(item)
     setItemDialogOpen(true)
+  }
+
+  function handleToggleActive(item: PriceListItem) {
+    if (!isApproved) {
+      toast.warning("Verification required", {
+        description: "Complete KYB verification to manage your price list.",
+      })
+      return
+    }
+    togglePriceListItemActive(item.id)
+  }
+
+  function handleDeleteRequest(item: PriceListItem) {
+    if (!isApproved) {
+      toast.warning("Verification required", {
+        description: "Complete KYB verification to manage your price list.",
+      })
+      return
+    }
+    setDeleteTarget(item)
   }
 
   function handleDeleteConfirm() {
@@ -558,11 +593,11 @@ export default function PriceListPage() {
             className="pl-9"
             placeholder="Search items..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearch(e.target.value)}
           />
         </div>
 
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+        <Select value={categoryFilter} onValueChange={handleCategoryFilter}>
           <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
@@ -662,7 +697,7 @@ export default function PriceListPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((item) => (
+              pagedItems.map((item) => (
                 <TableRow
                   key={item.id}
                   className={cn(
@@ -702,9 +737,7 @@ export default function PriceListPage() {
                   <TableCell>
                     <Switch
                       checked={item.isActive}
-                      onCheckedChange={() =>
-                        togglePriceListItemActive(item.id)
-                      }
+                      onCheckedChange={() => handleToggleActive(item)}
                     />
                   </TableCell>
                   <TableCell className="pr-5 text-right">
@@ -721,7 +754,7 @@ export default function PriceListPage() {
                         variant="ghost"
                         size="icon"
                         className="size-8 text-destructive hover:text-destructive"
-                        onClick={() => setDeleteTarget(item)}
+                        onClick={() => handleDeleteRequest(item)}
                       >
                         <Trash2 className="size-4" />
                       </Button>
@@ -732,6 +765,11 @@ export default function PriceListPage() {
             )}
           </TableBody>
         </Table>
+        {filtered.length > 0 && (
+          <div className="px-5 pb-4">
+            <TablePagination currentPage={currentPage} totalItems={filtered.length} pageSize={PAGE_SIZE} onPageChange={setCurrentPage} />
+          </div>
+        )}
       </div>
 
       <ManageCategoriesDialog

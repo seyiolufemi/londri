@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, type ReactNode } from "react"
-import { Wallet, TrendingUp } from "lucide-react"
+import { Wallet } from "lucide-react"
 import { toast } from "sonner"
 import { useStore } from "@/lib/mock/store"
 import { useKybStatus } from "@/lib/hooks/useKybStatus"
@@ -33,6 +33,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import WithdrawDialog from "@/components/shared/WithdrawDialog"
+import DateRangePicker, {
+  isDateInRange,
+  type DateRangeValue,
+} from "@/components/shared/DateRangePicker"
+import TablePagination, { paginate } from "@/components/shared/TablePagination"
 import { cn } from "@/lib/utils"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -57,23 +62,6 @@ function formatChannel(channel: string): string {
     cash: "Cash",
   }
   return map[channel] ?? channel
-}
-
-function getDateBounds(range: string): { start: Date; end: Date } | null {
-  const now = new Date()
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  if (range === "today") return { start: startOfToday, end: now }
-  if (range === "this_week") {
-    const day = startOfToday.getDay()
-    const diff = day === 0 ? 6 : day - 1
-    const mon = new Date(startOfToday)
-    mon.setDate(startOfToday.getDate() - diff)
-    return { start: mon, end: now }
-  }
-  if (range === "this_month") {
-    return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: now }
-  }
-  return null
 }
 
 // ─── Type Badge ───────────────────────────────────────────────────────────────
@@ -262,6 +250,8 @@ function StatCard({ label, value, icon, action }: StatCardProps) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+const PAGE_SIZE = 10
+
 export default function TransactionsPage() {
   const { kybStatus } = useKybStatus()
   const transactions = useStore((s) => s.transactions)
@@ -275,8 +265,13 @@ export default function TransactionsPage() {
   const [withdrawOpen, setWithdrawOpen] = useState(false)
   const [typeFilter, setTypeFilter] = useState("all")
   const [matchFilter, setMatchFilter] = useState("all")
-  const [dateFilter, setDateFilter] = useState("all")
+  const [dateRangeValue, setDateRangeValue] = useState<DateRangeValue>("this_month")
   const [resolvingTxn, setResolvingTxn] = useState<Transaction | null>(null)
+
+  // Separate pagination states for each table
+  const [txnPage, setTxnPage] = useState(1)
+  const [payoutPage, setPayoutPage] = useState(1)
+  const [payoutDateRange, setPayoutDateRange] = useState<DateRangeValue>("this_month")
 
   // Order reference lookup
   const orderRefMap = useMemo(() => {
@@ -286,20 +281,18 @@ export default function TransactionsPage() {
   }, [orders])
 
   const filtered = useMemo(() => {
-    const bounds = getDateBounds(dateFilter)
     return [...transactions]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .filter((t) => {
         if (typeFilter !== "all" && t.type !== typeFilter) return false
         if (matchFilter === "matched" && t.matchStatus !== "matched") return false
         if (matchFilter === "unmatched" && t.matchStatus !== "unmatched") return false
-        if (bounds) {
-          const d = new Date(t.createdAt)
-          if (d < bounds.start || d > bounds.end) return false
-        }
+        if (!isDateInRange(new Date(t.createdAt), dateRangeValue)) return false
         return true
       })
-  }, [transactions, typeFilter, matchFilter, dateFilter])
+  }, [transactions, typeFilter, matchFilter, dateRangeValue])
+
+  const pagedTxns = paginate(filtered, txnPage, PAGE_SIZE)
 
   const sortedPayouts = useMemo(
     () =>
@@ -309,6 +302,13 @@ export default function TransactionsPage() {
     [payouts]
   )
 
+  const filteredPayouts = useMemo(
+    () => sortedPayouts.filter((p) => isDateInRange(new Date(p.createdAt), payoutDateRange)),
+    [sortedPayouts, payoutDateRange]
+  )
+
+  const pagedPayouts = paginate(filteredPayouts, payoutPage, PAGE_SIZE)
+
   function handleWithdrawClick() {
     if (!isApproved) {
       toast.warning("Verification required", {
@@ -317,6 +317,26 @@ export default function TransactionsPage() {
       return
     }
     setWithdrawOpen(true)
+  }
+
+  function handleTypeFilter(v: string) {
+    setTypeFilter(v)
+    setTxnPage(1)
+  }
+
+  function handleMatchFilter(v: string) {
+    setMatchFilter(v)
+    setTxnPage(1)
+  }
+
+  function handleDateRangeChange(v: DateRangeValue) {
+    setDateRangeValue(v)
+    setTxnPage(1)
+  }
+
+  function handlePayoutDateRangeChange(v: DateRangeValue) {
+    setPayoutDateRange(v)
+    setPayoutPage(1)
   }
 
   return (
@@ -337,8 +357,8 @@ export default function TransactionsPage() {
         </Button>
       </div>
 
-      {/* Stat cards */}
-      <div className="grid max-w-xl grid-cols-2 gap-4">
+      {/* Available Balance — single standalone card */}
+      <div className="max-w-xs">
         <StatCard
           label="Available Balance"
           value={formatNaira(availableBalance)}
@@ -346,16 +366,11 @@ export default function TransactionsPage() {
           action={
             <button
               onClick={handleWithdrawClick}
-              className="mt-1 text-xs text-primary hover:underline cursor-pointer"
+              className="mt-1 cursor-pointer text-xs text-primary hover:underline"
             >
               Withdraw →
             </button>
           }
-        />
-        <StatCard
-          label="Total Paid Out"
-          value={formatNaira(totalPaidOut)}
-          icon={<TrendingUp className="size-4 text-muted-foreground" />}
         />
       </div>
 
@@ -365,7 +380,7 @@ export default function TransactionsPage() {
 
         {/* Filters */}
         <div className="mb-4 flex flex-wrap gap-3">
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <Select value={typeFilter} onValueChange={handleTypeFilter}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="All Types" />
             </SelectTrigger>
@@ -378,7 +393,7 @@ export default function TransactionsPage() {
             </SelectContent>
           </Select>
 
-          <Select value={matchFilter} onValueChange={setMatchFilter}>
+          <Select value={matchFilter} onValueChange={handleMatchFilter}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="All" />
             </SelectTrigger>
@@ -389,17 +404,10 @@ export default function TransactionsPage() {
             </SelectContent>
           </Select>
 
-          <Select value={dateFilter} onValueChange={setDateFilter}>
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="All Time" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Time</SelectItem>
-              <SelectItem value="today">Today</SelectItem>
-              <SelectItem value="this_week">This Week</SelectItem>
-              <SelectItem value="this_month">This Month</SelectItem>
-            </SelectContent>
-          </Select>
+          <DateRangePicker
+            value={dateRangeValue}
+            onChange={handleDateRangeChange}
+          />
         </div>
 
         {/* Table */}
@@ -441,7 +449,7 @@ export default function TransactionsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((txn) => (
+                pagedTxns.map((txn) => (
                   <TableRow
                     key={txn.id}
                     className={cn(
@@ -485,12 +493,30 @@ export default function TransactionsPage() {
               )}
             </TableBody>
           </Table>
+          {filtered.length > 0 && (
+            <div className="px-5 pb-4">
+              <TablePagination
+                currentPage={txnPage}
+                totalItems={filtered.length}
+                pageSize={PAGE_SIZE}
+                onPageChange={setTxnPage}
+              />
+            </div>
+          )}
         </div>
       </div>
 
       {/* Section 2 — Payout History */}
       <div>
-        <h2 className="mb-4 text-base font-semibold text-foreground">Payout History</h2>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Payout History</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {formatNaira(totalPaidOut)} total paid out
+            </p>
+          </div>
+          <DateRangePicker value={payoutDateRange} onChange={handlePayoutDateRangeChange} />
+        </div>
 
         <div className="rounded-xl border border-border bg-background">
           <Table>
@@ -511,7 +537,7 @@ export default function TransactionsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedPayouts.length === 0 ? (
+              {filteredPayouts.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={4}
@@ -521,7 +547,7 @@ export default function TransactionsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedPayouts.map((payout) => (
+                pagedPayouts.map((payout) => (
                   <TableRow key={payout.id}>
                     <TableCell className="pl-5 text-sm text-muted-foreground">
                       {formatDate(payout.createdAt)}
@@ -540,6 +566,16 @@ export default function TransactionsPage() {
               )}
             </TableBody>
           </Table>
+          {filteredPayouts.length > 0 && (
+            <div className="px-5 pb-4">
+              <TablePagination
+                currentPage={payoutPage}
+                totalItems={filteredPayouts.length}
+                pageSize={PAGE_SIZE}
+                onPageChange={setPayoutPage}
+              />
+            </div>
+          )}
         </div>
       </div>
 

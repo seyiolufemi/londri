@@ -139,3 +139,21 @@ export interface Payout {
   period: string
   createdAt: string
 }
+
+export type NotificationType =
+  | "new_order"
+  | "payment_received"
+  | "kyb_status"
+  | "withdrawal_completed"
+  | "new_subscriber"
+  | "unmatched_transaction"
+
+export interface Notification {
+  id: string
+  type: NotificationType
+  title: string
+  message: string
+  read: boolean
+  createdAt: Date
+  linkTo?: string
+}

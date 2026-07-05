@@ -1,15 +1,16 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { useRouter } from "next/navigation"
 import {
   Plus,
   Pencil,
   Trash2,
   Package,
-  Tag,
   Users,
-  Lock,
+  TrendingUp,
+  UserMinus,
+  UserPlus,
+  type LucideIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useStore } from "@/lib/mock/store"
@@ -54,12 +55,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type {
   SubscriptionPlan,
   CustomerSubscription,
   SubscriptionStatus,
   PriceCategory,
 } from "@/types"
+import TablePagination, { paginate } from "@/components/shared/TablePagination"
+import DateRangePicker, { isDateInRange, type DateRangeValue } from "@/components/shared/DateRangePicker"
+import StartSubscriptionDialog from "@/components/shared/StartSubscriptionDialog"
+
+const PAGE_SIZE = 10
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -68,13 +75,6 @@ const CATEGORY_LABELS: Record<PriceCategory, string> = {
   bedding: "Bedding",
   household: "Household",
   specialty: "Specialty",
-}
-
-const BILLING_LABELS: Record<string, string> = {
-  weekly: "/week",
-  monthly: "/month",
-  quarterly: "/quarter",
-  annually: "/year",
 }
 
 const STATUS_CONFIG: Record<
@@ -162,6 +162,30 @@ function UsageBar({ used, total }: { used: number; total: number }) {
   )
 }
 
+function SubStatCard({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string
+  value: string | number
+  icon: LucideIcon
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-background p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-sm text-muted-foreground">{label}</span>
+        <div className="flex size-8 items-center justify-center rounded-lg bg-muted">
+          <Icon className="size-4 text-muted-foreground" />
+        </div>
+      </div>
+      <p className="font-[family-name:var(--font-jakarta)] text-2xl font-bold tabular-nums text-foreground">
+        {value}
+      </p>
+    </div>
+  )
+}
+
 // ─── Plan Dialog ──────────────────────────────────────────────────────────────
 
 interface PlanDialogProps {
@@ -181,12 +205,6 @@ function PlanDialog({
 }: PlanDialogProps) {
   const [form, setForm] = useState<PlanFormState>(EMPTY_FORM)
   const [errors, setErrors] = useState<PlanFormErrors>({})
-
-  // Reset form when dialog opens
-  const prevOpen = useMemo(() => open, [open])
-  if (open !== prevOpen) {
-    // handled via useEffect pattern inline
-  }
 
   // Initialise form when editing plan changes or dialog opens
   useMemo(() => {
@@ -510,7 +528,6 @@ function SubscriberSheet({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SubscriptionsPage() {
-  const router = useRouter()
   const { kybStatus } = useKybStatus()
 
   const subscriptionPlans = useStore((s) => s.subscriptionPlans)
@@ -542,21 +559,63 @@ export default function SubscriptionsPage() {
     return map
   }, [subscriptionPlans])
 
+  const activeSubscriberCount = useMemo(
+    () => customerSubscriptions.filter((s) => s.status === "active").length,
+    [customerSubscriptions]
+  )
+
+  const monthlyRecurringRevenue = useMemo(() => {
+    return customerSubscriptions
+      .filter((s) => s.status === "active")
+      .reduce((sum, s) => {
+        const plan = planMap[s.planId]
+        if (!plan) return sum
+        if (plan.billingCycle === "monthly") return sum + plan.price
+        if (plan.billingCycle === "weekly") return sum + plan.price * 4
+        if (plan.billingCycle === "quarterly") return sum + Math.round(plan.price / 3)
+        if (plan.billingCycle === "annually") return sum + Math.round(plan.price / 12)
+        return sum + plan.price
+      }, 0)
+  }, [customerSubscriptions, planMap])
+
+  const cancelledCount = useMemo(
+    () => customerSubscriptions.filter((s) => s.status === "cancelled").length,
+    [customerSubscriptions]
+  )
+
+  // ── Tab state ──
+  const [activeTab, setActiveTab] = useState<"subscribers" | "plans">("subscribers")
+
   // ── Filters ──
   const [planFilter, setPlanFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState<SubscriptionStatus | "all">("all")
+
+  // ── Pagination ──
+  const [subscriberPage, setSubscriberPage] = useState(1)
+  const [planPage, setPlanPage] = useState(1)
+
+  const [subscriberDateRange, setSubscriberDateRange] = useState<DateRangeValue>("all_time")
 
   const filteredSubscribers = useMemo(() => {
     return customerSubscriptions.filter((s) => {
       if (planFilter !== "all" && s.planId !== planFilter) return false
       if (statusFilter !== "all" && s.status !== statusFilter) return false
+      if (!isDateInRange(new Date(s.startDate), subscriberDateRange)) return false
       return true
     })
-  }, [customerSubscriptions, planFilter, statusFilter])
+  }, [customerSubscriptions, planFilter, statusFilter, subscriberDateRange])
+
+  function handlePlanFilter(v: string) { setPlanFilter(v); setSubscriberPage(1) }
+  function handleSubStatusFilter(v: string) { setStatusFilter(v as SubscriptionStatus | "all"); setSubscriberPage(1) }
+  function handleSubscriberDateRange(v: DateRangeValue) { setSubscriberDateRange(v); setSubscriberPage(1) }
+
+  const pagedSubscribers = paginate(filteredSubscribers, subscriberPage, PAGE_SIZE)
+  const pagedPlans = paginate(subscriptionPlans, planPage, PAGE_SIZE)
 
   // ── Dialog state ──
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null)
+  const [newSubDialogOpen, setNewSubDialogOpen] = useState(false)
 
   function openAddDialog() {
     if (locked) {
@@ -646,241 +705,311 @@ export default function SubscriptionsPage() {
             Manage subscription plans and view active subscribers
           </p>
         </div>
-        <Button
-          disabled={locked}
-          className={cn(locked && "cursor-not-allowed opacity-50")}
-          onClick={openAddDialog}
-        >
-          <Plus className="mr-1.5 size-4" />
-          Add Plan
-        </Button>
-      </div>
-
-      {/* ── Plans Section ── */}
-      <h3 className="mb-4 text-base font-semibold text-foreground">Plans</h3>
-      {subscriptionPlans.length === 0 ? (
-        <div className="mb-10 flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-12">
-          <Package className="size-7 text-muted-foreground" />
-          <p className="mt-2 text-sm text-muted-foreground">
-            No plans yet. Add your first subscription plan.
-          </p>
-        </div>
-      ) : (
-        <div className="mb-10 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {subscriptionPlans.map((plan) => (
-            <div
-              key={plan.id}
-              className="rounded-xl border border-border bg-background p-6"
-            >
-              {/* Top row: name + active switch */}
-              <div className="flex items-center justify-between">
-                <span className="text-base font-semibold text-foreground">
-                  {plan.name}
-                </span>
-                <Switch
-                  checked={plan.isActive}
-                  onCheckedChange={() => togglePlanActive(plan.id)}
-                  aria-label={`Toggle ${plan.name} plan`}
-                />
-              </div>
-
-              {/* Price */}
-              <div className="mt-2 flex items-baseline gap-1">
-                <span className="font-[family-name:var(--font-jakarta)] text-2xl font-bold tabular-nums text-foreground">
-                  {formatNaira(plan.price)}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  {BILLING_LABELS[plan.billingCycle] ?? "/month"}
-                </span>
-              </div>
-
-              {/* Description */}
-              {plan.description && (
-                <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                  {plan.description}
-                </p>
-              )}
-
-              {/* Divider */}
-              <div className="mt-4 border-t border-border pt-4">
-                {/* Item cap */}
-                <div className="mb-2 flex items-center gap-2">
-                  <Package className="size-3.5 shrink-0 text-muted-foreground" />
-                  <span className="text-sm text-foreground">
-                    {plan.credits} items per cycle
-                  </span>
-                </div>
-
-                {/* Categories */}
-                <div className="flex items-start gap-2">
-                  <Tag className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-                  <div className="flex flex-wrap gap-1">
-                    {plan.categories.map((cat) => (
-                      <span
-                        key={cat}
-                        className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-                      >
-                        {CATEGORY_LABELS[cat]}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Subscriber count */}
-                <div className="mt-3 flex items-center gap-2">
-                  <Users className="size-3.5 shrink-0 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    {activeSubsByPlan[plan.id] ?? 0} active subscriber
-                    {(activeSubsByPlan[plan.id] ?? 0) !== 1 ? "s" : ""}
-                  </span>
-                </div>
-              </div>
-
-              {/* Bottom row: edit + delete */}
-              <div className="mt-4 flex justify-end gap-2 border-t border-border pt-4">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => openEditDialog(plan)}
-                >
-                  <Pencil className="mr-1.5 size-3.5" />
-                  Edit
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  onClick={() => setDeletePlanId(plan.id)}
-                >
-                  <Trash2 className="mr-1.5 size-3.5" />
-                  Delete
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── Subscribers Section ── */}
-      <h3 className="mb-4 text-base font-semibold text-foreground">Subscribers</h3>
-
-      {/* Filter bar */}
-      <div className="mb-4 flex flex-wrap gap-3">
-        <Select value={planFilter} onValueChange={setPlanFilter}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="All Plans" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Plans</SelectItem>
-            {subscriptionPlans.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={statusFilter}
-          onValueChange={(v) =>
-            setStatusFilter(v as SubscriptionStatus | "all")
-          }
-        >
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="All Statuses" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="paused">Paused</SelectItem>
-            <SelectItem value="expired">Expired</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Subscribers table */}
-      <div className="overflow-hidden rounded-xl border border-border bg-background">
-        {filteredSubscribers.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12">
-            <Users className="size-7 text-muted-foreground" />
-            <p className="mt-2 text-sm text-muted-foreground">
-              No subscribers found
-            </p>
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-5 pr-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Customer
-                </TableHead>
-                <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Plan
-                </TableHead>
-                <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Status
-                </TableHead>
-                <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Usage This Cycle
-                </TableHead>
-                <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Next Billing
-                </TableHead>
-                <TableHead className="pl-4 pr-5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Actions
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredSubscribers.map((sub) => {
-                const plan = planMap[sub.planId]
-                return (
-                  <TableRow key={sub.id}>
-                    <TableCell className="pl-5 pr-4">
-                      <p className="text-sm font-medium text-foreground">
-                        {sub.customerName}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {sub.customerPhone}
-                      </p>
-                    </TableCell>
-                    <TableCell className="px-4 text-sm text-foreground">
-                      {sub.planName}
-                    </TableCell>
-                    <TableCell className="px-4">
-                      <StatusBadge status={sub.status} />
-                    </TableCell>
-                    <TableCell className="px-4">
-                      <p className="text-sm tabular-nums text-foreground">
-                        {sub.creditsUsed}/{sub.creditsTotal} items
-                      </p>
-                      <UsageBar
-                        used={sub.creditsUsed}
-                        total={sub.creditsTotal}
-                      />
-                    </TableCell>
-                    <TableCell className="px-4 text-sm text-muted-foreground">
-                      {new Date(sub.nextBillingDate).toLocaleDateString(
-                        "en-NG",
-                        { month: "short", day: "numeric", year: "numeric" }
-                      )}
-                    </TableCell>
-                    <TableCell className="pl-4 pr-5">
-                      <button
-                        className="text-sm font-medium text-primary hover:underline"
-                        onClick={() => openSubscriberSheet(sub.id)}
-                      >
-                        View
-                      </button>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
+        {activeTab === "subscribers" && (
+          <Button
+            disabled={locked}
+            className={cn(locked && "cursor-not-allowed opacity-50")}
+            onClick={() => {
+              if (locked) {
+                toast.warning("Complete verification to add subscriptions.")
+                return
+              }
+              setNewSubDialogOpen(true)
+            }}
+          >
+            <UserPlus className="mr-1.5 size-4" />
+            New Subscription
+          </Button>
+        )}
+        {activeTab === "plans" && (
+          <Button
+            disabled={locked}
+            className={cn(locked && "cursor-not-allowed opacity-50")}
+            onClick={openAddDialog}
+          >
+            <Plus className="mr-1.5 size-4" />
+            Add Plan
+          </Button>
         )}
       </div>
+
+      {/* ── Tabs ── */}
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => {
+          setActiveTab(v as "subscribers" | "plans")
+          setSubscriberPage(1)
+          setPlanPage(1)
+        }}
+      >
+        <TabsList className="mb-6">
+          <TabsTrigger value="subscribers">Subscribers</TabsTrigger>
+          <TabsTrigger value="plans">Plans</TabsTrigger>
+        </TabsList>
+
+        {/* ── Tab 1: Subscribers ── */}
+        <TabsContent value="subscribers" className="space-y-6">
+          {/* Stat cards */}
+          <div className="grid grid-cols-3 gap-4">
+            <SubStatCard
+              label="Active Subscribers"
+              value={activeSubscriberCount}
+              icon={Users}
+            />
+            <SubStatCard
+              label="Monthly Recurring Revenue"
+              value={formatNaira(monthlyRecurringRevenue)}
+              icon={TrendingUp}
+            />
+            <SubStatCard
+              label="Cancelled"
+              value={cancelledCount}
+              icon={UserMinus}
+            />
+          </div>
+
+          {/* Filter bar */}
+          <div className="flex flex-wrap gap-3">
+            <Select value={planFilter} onValueChange={handlePlanFilter}>
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="All Plans" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Plans</SelectItem>
+                {subscriptionPlans.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={statusFilter}
+              onValueChange={handleSubStatusFilter}
+            >
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="paused">Paused</SelectItem>
+                <SelectItem value="expired">Expired</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <DateRangePicker value={subscriberDateRange} onChange={handleSubscriberDateRange} />
+          </div>
+
+          {/* Subscribers table */}
+          <div className="overflow-hidden rounded-xl border border-border bg-background">
+            {filteredSubscribers.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Users className="size-7 text-muted-foreground" />
+                <p className="mt-2 text-sm text-muted-foreground">
+                  No subscribers found
+                </p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="pl-5 pr-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Customer
+                    </TableHead>
+                    <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Plan
+                    </TableHead>
+                    <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Status
+                    </TableHead>
+                    <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Usage This Cycle
+                    </TableHead>
+                    <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Next Billing
+                    </TableHead>
+                    <TableHead className="pl-4 pr-5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Actions
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pagedSubscribers.map((sub) => (
+                    <TableRow key={sub.id}>
+                      <TableCell className="pl-5 pr-4">
+                        <p className="text-sm font-medium text-foreground">
+                          {sub.customerName}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {sub.customerPhone}
+                        </p>
+                      </TableCell>
+                      <TableCell className="px-4 text-sm text-foreground">
+                        {sub.planName}
+                      </TableCell>
+                      <TableCell className="px-4">
+                        <StatusBadge status={sub.status} />
+                      </TableCell>
+                      <TableCell className="px-4">
+                        <p className="text-sm tabular-nums text-foreground">
+                          {sub.creditsUsed}/{sub.creditsTotal} items
+                        </p>
+                        <UsageBar
+                          used={sub.creditsUsed}
+                          total={sub.creditsTotal}
+                        />
+                      </TableCell>
+                      <TableCell className="px-4 text-sm text-muted-foreground">
+                        {new Date(sub.nextBillingDate).toLocaleDateString(
+                          "en-NG",
+                          { month: "short", day: "numeric", year: "numeric" }
+                        )}
+                      </TableCell>
+                      <TableCell className="pl-4 pr-5">
+                        <button
+                          className="text-sm font-medium text-primary hover:underline"
+                          onClick={() => openSubscriberSheet(sub.id)}
+                        >
+                          View
+                        </button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+            {filteredSubscribers.length > 0 && (
+              <div className="px-5 pb-4">
+                <TablePagination currentPage={subscriberPage} totalItems={filteredSubscribers.length} pageSize={PAGE_SIZE} onPageChange={setSubscriberPage} />
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* ── Tab 2: Plans ── */}
+        <TabsContent value="plans">
+          <div className="overflow-hidden rounded-xl border border-border bg-background">
+            {subscriptionPlans.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Package className="size-7 text-muted-foreground" />
+                <p className="mt-2 text-sm text-muted-foreground">
+                  No plans yet. Add your first subscription plan.
+                </p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="pl-5 pr-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Plan Name
+                    </TableHead>
+                    <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Price
+                    </TableHead>
+                    <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Billing Cycle
+                    </TableHead>
+                    <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Item Cap
+                    </TableHead>
+                    <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Categories
+                    </TableHead>
+                    <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Subscribers
+                    </TableHead>
+                    <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Active
+                    </TableHead>
+                    <TableHead className="pl-4 pr-5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Actions
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pagedPlans.map((plan) => (
+                    <TableRow
+                      key={plan.id}
+                      className={cn(!plan.isActive && "opacity-50")}
+                    >
+                      <TableCell className="pl-5 pr-4">
+                        <p className="text-sm font-medium text-foreground">
+                          {plan.name}
+                        </p>
+                        {plan.description && (
+                          <p className="max-w-[180px] truncate text-xs text-muted-foreground">
+                            {plan.description}
+                          </p>
+                        )}
+                      </TableCell>
+                      <TableCell className="px-4 text-sm font-medium tabular-nums text-foreground">
+                        {formatNaira(plan.price)}
+                      </TableCell>
+                      <TableCell className="px-4 text-sm capitalize text-muted-foreground">
+                        {plan.billingCycle}
+                      </TableCell>
+                      <TableCell className="px-4 text-sm tabular-nums text-foreground">
+                        {plan.credits}
+                      </TableCell>
+                      <TableCell className="px-4">
+                        <div className="flex flex-wrap gap-1">
+                          {plan.categories.map((cat) => (
+                            <span
+                              key={cat}
+                              className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                            >
+                              {CATEGORY_LABELS[cat]}
+                            </span>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-4 text-sm tabular-nums text-foreground">
+                        {activeSubsByPlan[plan.id] ?? 0}
+                      </TableCell>
+                      <TableCell className="px-4">
+                        <Switch
+                          checked={plan.isActive}
+                          onCheckedChange={() => togglePlanActive(plan.id)}
+                          aria-label={`Toggle ${plan.name} plan`}
+                        />
+                      </TableCell>
+                      <TableCell className="pl-4 pr-5">
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditDialog(plan)}
+                          >
+                            <Pencil className="mr-1.5 size-3.5" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => setDeletePlanId(plan.id)}
+                          >
+                            <Trash2 className="mr-1.5 size-3.5" />
+                            Delete
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+            {subscriptionPlans.length > 0 && (
+              <div className="px-5 pb-4">
+                <TablePagination currentPage={planPage} totalItems={subscriptionPlans.length} pageSize={PAGE_SIZE} onPageChange={setPlanPage} />
+              </div>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {/* ── Plan Dialog ── */}
       <PlanDialog
@@ -922,6 +1051,12 @@ export default function SubscriptionsPage() {
         onOpenChange={setSheetOpen}
         subscriber={viewingSubscriber}
         plan={viewingPlan}
+      />
+
+      {/* ── New Subscription Dialog ── */}
+      <StartSubscriptionDialog
+        open={newSubDialogOpen}
+        onOpenChange={setNewSubDialogOpen}
       />
     </div>
   )

@@ -15,6 +15,7 @@ import type {
   OrderStatus,
   Payout,
   PayoutStatus,
+  Notification,
 } from "@/types"
 import {
   businesses as initialBusinesses,
@@ -27,6 +28,7 @@ import {
   transactions as initialTransactions,
   itemCategories as initialItemCategories,
   payouts as initialPayouts,
+  notifications as initialNotifications,
 } from "./data"
 
 export interface SignupFormData {
@@ -117,6 +119,57 @@ interface StoreState {
   addPayout: (payout: Payout) => void
   updatePayoutStatus: (id: string, status: PayoutStatus) => void
   addToTotalPaidOut: (amount: number) => void
+
+  businessProfile: BusinessProfileSettings
+  setBusinessProfile: (profile: Partial<BusinessProfileSettings>) => void
+  setBusinessBankDetails: (bankName: string, accountNumber: string, accountName: string) => void
+
+  profileEmail: string
+  profilePhone: string
+  profileAvatarUrl: string | null
+  setProfileEmail: (email: string) => void
+  setProfilePhone: (phone: string) => void
+  setProfileAvatarUrl: (url: string | null) => void
+
+  notifications: Notification[]
+  markNotificationRead: (id: string) => void
+  markAllNotificationsRead: () => void
+}
+
+export interface OperatingDay {
+  open: boolean
+  openTime: string
+  closeTime: string
+}
+
+export interface BusinessProfileSettings {
+  businessName: string
+  description: string
+  address: string
+  serviceAreaRadius: number
+  featuredServiceId: string | null
+  illustrationIndex: number
+  operatingHours: Record<string, OperatingDay>
+}
+
+const DEFAULT_OPERATING_HOURS: Record<string, OperatingDay> = {
+  Mon: { open: true, openTime: "08:00", closeTime: "18:00" },
+  Tue: { open: true, openTime: "08:00", closeTime: "18:00" },
+  Wed: { open: true, openTime: "08:00", closeTime: "18:00" },
+  Thu: { open: true, openTime: "08:00", closeTime: "18:00" },
+  Fri: { open: true, openTime: "08:00", closeTime: "18:00" },
+  Sat: { open: true, openTime: "09:00", closeTime: "16:00" },
+  Sun: { open: false, openTime: "10:00", closeTime: "14:00" },
+}
+
+const DEFAULT_BUSINESS_PROFILE: BusinessProfileSettings = {
+  businessName: "Sparkle Wash Laundry",
+  description: "",
+  address: "12 Adeola Odeku Street, Victoria Island",
+  serviceAreaRadius: 5,
+  featuredServiceId: null,
+  illustrationIndex: 0,
+  operatingHours: DEFAULT_OPERATING_HOURS,
 }
 
 const EMPTY_KYB_DATA: KybFormData = {
@@ -286,6 +339,31 @@ export const useStore = create<StoreState>()(
 
   addToTotalPaidOut: (amount) =>
     set((state) => ({ totalPaidOut: state.totalPaidOut + amount })),
+
+  businessProfile: DEFAULT_BUSINESS_PROFILE,
+  setBusinessProfile: (profile) =>
+    set((state) => ({ businessProfile: { ...state.businessProfile, ...profile } })),
+  setBusinessBankDetails: (bankName, accountNumber, accountName) =>
+    set({ businessBankName: bankName, businessAccountNumber: accountNumber, businessAccountName: accountName }),
+
+  profileEmail: "amara@sparklewash.ng",
+  profilePhone: "+234 801 234 5678",
+  profileAvatarUrl: null,
+  setProfileEmail: (profileEmail) => set({ profileEmail }),
+  setProfilePhone: (profilePhone) => set({ profilePhone }),
+  setProfileAvatarUrl: (profileAvatarUrl) => set({ profileAvatarUrl }),
+
+  notifications: initialNotifications,
+  markNotificationRead: (id) =>
+    set((state) => ({
+      notifications: state.notifications.map((n) =>
+        n.id === id ? { ...n, read: true } : n
+      ),
+    })),
+  markAllNotificationsRead: () =>
+    set((state) => ({
+      notifications: state.notifications.map((n) => ({ ...n, read: true })),
+    })),
     }),
     {
       name: "londri-kyb-progress",
