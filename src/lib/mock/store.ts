@@ -120,11 +120,7 @@ interface StoreState {
   setBusinessProfile: (profile: Partial<BusinessProfileSettings>) => void
   setBusinessBankDetails: (bankName: string, accountNumber: string, accountName: string) => void
 
-  profileEmail: string
-  profilePhone: string
   profileAvatarUrl: string | null
-  setProfileEmail: (email: string) => void
-  setProfilePhone: (phone: string) => void
   setProfileAvatarUrl: (url: string | null) => void
 
   notifications: Notification[]
@@ -339,11 +335,7 @@ export const useStore = create<StoreState>()(
   setBusinessBankDetails: (bankName, accountNumber, accountName) =>
     set({ businessBankName: bankName, businessAccountNumber: accountNumber, businessAccountName: accountName }),
 
-  profileEmail: "amara@sparklewash.ng",
-  profilePhone: "+234 801 234 5678",
   profileAvatarUrl: null,
-  setProfileEmail: (profileEmail) => set({ profileEmail }),
-  setProfilePhone: (profilePhone) => set({ profilePhone }),
   setProfileAvatarUrl: (profileAvatarUrl) => set({ profileAvatarUrl }),
 
   notifications: initialNotifications,

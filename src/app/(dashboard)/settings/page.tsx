@@ -164,6 +164,14 @@ export default function SettingsPage() {
 
   // ── Tab 1: Business Profile ───────────────────────────────────────────────
   const [profileName, setProfileName] = useState(businessProfile.businessName)
+
+  // Seed the business name from the real business once it loads, rather than in
+  // an effect — avoids an extra render pass (see react-hooks/set-state-in-effect).
+  const [hasPrefilledName, setHasPrefilledName] = useState(false)
+  if (business && !hasPrefilledName) {
+    setHasPrefilledName(true)
+    setProfileName(business.name)
+  }
   const [profileDescription, setProfileDescription] = useState(businessProfile.description)
   const [profileAddress, setProfileAddress] = useState(businessProfile.address)
   const [profileRadius, setProfileRadius] = useState(String(businessProfile.serviceAreaRadius))

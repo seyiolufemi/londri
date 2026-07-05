@@ -30,10 +30,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
-import { useStore } from "@/lib/mock/store"
 import { useAppDispatch } from "@/hooks/redux"
 import { apiManager } from "@/redux/apiManager"
 import { useLogoutMutation } from "@/redux/api/authApi"
+import { useGetMyBusinessQuery } from "@/redux/api/businessApi"
 import { getApiErrorMessage } from "@/lib/apiError"
 import type { KybStatus } from "@/types"
 
@@ -133,8 +133,8 @@ export default function Sidebar({ collapsed, onToggle, kybStatus }: SidebarProps
   const pathname = usePathname()
   const router = useRouter()
   const dispatch = useAppDispatch()
-  const businessName =
-    useStore((s) => s.signupData.businessName) || "Sparkle Wash Laundry"
+  const { data: business } = useGetMyBusinessQuery()
+  const businessName = business?.name || "Business"
   const initials = businessName
     .split(" ")
     .slice(0, 2)
