@@ -137,3 +137,19 @@
 .progress-ring {
   animation: progress-fill 4.5s linear forwards;
 }
+
+/* Override Sonner's hardcoded description color (#3f3f3f, specificity 0,3,0).
+   Using 4 attribute selectors gives specificity 0,4,0 — enough to win without !important. */
+[data-sonner-toaster] [data-sonner-toast][data-styled='true'] [data-description] {
+  color: color-mix(in oklch, var(--foreground) 80%, transparent);
+}
+
+.bg-pattern-diagonal {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.05) 0px,
+    rgba(255, 255, 255, 0.05) 1px,
+    transparent 1px,
+    transparent 20px
+  );
+}

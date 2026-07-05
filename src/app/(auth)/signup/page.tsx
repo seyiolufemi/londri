@@ -4,7 +4,7 @@ import { useState, type SubmitEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ChevronLeft, Eye, EyeOff, Loader2 } from "lucide-react"
+import { ChevronLeft, Eye, EyeOff, Loader2, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -244,6 +244,17 @@ export default function Page() {
                       <p className="mt-1 text-xs text-destructive">{errors.password}</p>
                     )}
                   </div>
+                  {signupData.password.length >= 8 ? (
+                    <span className="mt-1 flex items-center gap-1 text-xs text-green-600">
+                      <CheckCircle2 className="size-3" />
+                      At least 8 characters
+                    </span>
+                  ) : (
+                    <span className="mt-1 text-xs text-muted-foreground">At least 8 characters</span>
+                  )}
+                  {errors.password && (
+                    <p className="text-xs text-destructive">{errors.password}</p>
+                  )}
                 </div>
 
                 <Button

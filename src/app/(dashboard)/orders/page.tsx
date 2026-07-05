@@ -9,6 +9,11 @@ import {
   X,
   MessageCircle,
   XCircle,
+  Undo2,
+  Package,
+  CheckCircle2,
+  DollarSign,
+  type LucideIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useStore } from "@/lib/mock/store"
@@ -48,15 +53,15 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import type { Order, OrderStatus, OrderStatusEvent } from "@/types"
+import type { Order, OrderStatus, OrderStatusEvent, Transaction } from "@/types"
+import TablePagination, { paginate } from "@/components/shared/TablePagination"
+import DateRangePicker, { isDateInRange, type DateRangeValue } from "@/components/shared/DateRangePicker"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type StatusFilter = "all" | OrderStatus
 type ChannelFilter = "all" | "online" | "walk_in" | "subscription"
-type PaymentFilter = "all" | "paid" | "unpaid"
-type DateRangeFilter = "all" | "today" | "this_week" | "this_month"
-
+type PaymentFilter = "all" | "paid" | "unpaid" | "refunded"
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const STATUS_ORDER: OrderStatus[] = [
@@ -103,7 +108,10 @@ const CHANNEL_CONFIG = {
 const PAYMENT_CONFIG = {
   paid: { label: "Paid", className: "bg-green-50 text-green-600" },
   unpaid: { label: "Unpaid", className: "bg-amber-50 text-amber-600" },
+  refunded: { label: "Refunded", className: "bg-muted text-muted-foreground" },
 }
+
+const PAGE_SIZE = 10
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -114,6 +122,30 @@ function formatNaira(amount: number): string {
 function isStatusReached(current: OrderStatus, target: OrderStatus): boolean {
   if (current === "cancelled") return false
   return STATUS_ORDER.indexOf(current) >= STATUS_ORDER.indexOf(target)
+}
+
+// ─── Stat Card ────────────────────────────────────────────────────────────────
+
+interface StatCardProps {
+  label: string
+  value: string | number
+  icon: LucideIcon
+}
+
+function StatCard({ label, value, icon: Icon }: StatCardProps) {
+  return (
+    <div className="rounded-xl border border-border bg-background p-6">
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-sm text-muted-foreground">{label}</span>
+        <div className="flex size-8 items-center justify-center rounded-lg bg-muted">
+          <Icon className="size-4 text-muted-foreground" />
+        </div>
+      </div>
+      <p className="font-[family-name:var(--font-jakarta)] text-2xl font-bold tabular-nums text-foreground">
+        {value}
+      </p>
+    </div>
+  )
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -132,7 +164,7 @@ function ChannelBadge({ channel }: { channel: "online" | "walk_in" | "subscripti
   )
 }
 
-function PaymentBadge({ status }: { status: "paid" | "unpaid" }) {
+function PaymentBadge({ status }: { status: "paid" | "unpaid" | "refunded" }) {
   const cfg = PAYMENT_CONFIG[status]
   return (
     <span
@@ -154,6 +186,7 @@ interface PanelProps {
   onAdvanceStatus: () => void
   onCancelRequest: () => void
   onSimulatePayment: () => void
+  onRefundRequest: () => void
   onWhatsApp: (action: string) => void
 }
 
@@ -163,6 +196,7 @@ function OrderDetailPanel({
   onAdvanceStatus,
   onCancelRequest,
   onSimulatePayment,
+  onRefundRequest,
   onWhatsApp,
 }: PanelProps) {
   const nextActionLabel = NEXT_ACTION_LABEL[order.status]
@@ -245,6 +279,17 @@ function OrderDetailPanel({
           {order.paymentStatus === "unpaid" && (
             <Button variant="outline" size="sm" onClick={onSimulatePayment}>
               Simulate Payment Received
+            </Button>
+          )}
+          {order.paymentStatus === "paid" && order.status !== "cancelled" && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              onClick={onRefundRequest}
+            >
+              <Undo2 className="mr-1.5 size-3.5" />
+              Refund
             </Button>
           )}
         </div>
@@ -417,20 +462,42 @@ export default function OrdersPage() {
   const { kybStatus } = useKybStatus()
   const orders = useStore((s) => s.orders)
   const orderStatusEvents = useStore((s) => s.orderStatusEvents)
+  const transactions = useStore((s) => s.transactions)
   const updateOrderStatus = useStore((s) => s.updateOrderStatus)
   const updateOrderPaymentStatus = useStore((s) => s.updateOrderPaymentStatus)
+  const addTransaction = useStore((s) => s.addTransaction)
+
+  // Live stat totals — independent of all filters
+  const activeOrderCount = useMemo(
+    () => orders.filter((o) => o.status !== "completed" && o.status !== "cancelled").length,
+    [orders]
+  )
+  const completedOrderCount = useMemo(
+    () => orders.filter((o) => o.status === "completed").length,
+    [orders]
+  )
+  const cancelledOrderCount = useMemo(
+    () => orders.filter((o) => o.status === "cancelled").length,
+    [orders]
+  )
+  const totalOrderValue = useMemo(
+    () => orders.reduce((sum, o) => sum + o.totalAmount, 0),
+    [orders]
+  )
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>("all")
   const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>("all")
-  const [dateFilter, setDateFilter] = useState<DateRangeFilter>("all")
+  const [dateFilter, setDateFilter] = useState<DateRangeValue>("this_month")
   const [search, setSearch] = useState("")
+  const [ordersPage, setOrdersPage] = useState(1)
 
   // Panel
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [cancelAlertOpen, setCancelAlertOpen] = useState(false)
+  const [refundAlertOpen, setRefundAlertOpen] = useState(false)
 
   const selectedOrder = selectedOrderId
     ? (orders.find((o) => o.id === selectedOrderId) ?? null)
@@ -458,20 +525,7 @@ export default function OrdersPage() {
           o.reference.toLowerCase().includes(q)
       )
     }
-    if (dateFilter !== "all") {
-      const now = new Date()
-      let start: Date
-      if (dateFilter === "today") {
-        start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-      } else if (dateFilter === "this_week") {
-        const day = now.getDay()
-        const diff = day === 0 ? 6 : day - 1
-        start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diff)
-      } else {
-        start = new Date(now.getFullYear(), now.getMonth(), 1)
-      }
-      result = result.filter((o) => new Date(o.createdAt) >= start)
-    }
+    result = result.filter((o) => isDateInRange(new Date(o.createdAt), dateFilter))
     return result
   }, [orders, statusFilter, channelFilter, paymentFilter, dateFilter, search])
 
@@ -482,33 +536,29 @@ export default function OrdersPage() {
     activeFilters.push({
       key: "status",
       label: STATUS_LABELS[statusFilter],
-      onRemove: () => setStatusFilter("all"),
+      onRemove: () => { setStatusFilter("all"); setOrdersPage(1) },
     })
   if (channelFilter !== "all")
     activeFilters.push({
       key: "channel",
       label: CHANNEL_CONFIG[channelFilter].label,
-      onRemove: () => setChannelFilter("all"),
+      onRemove: () => { setChannelFilter("all"); setOrdersPage(1) },
     })
   if (paymentFilter !== "all")
     activeFilters.push({
       key: "payment",
       label: PAYMENT_CONFIG[paymentFilter].label,
-      onRemove: () => setPaymentFilter("all"),
+      onRemove: () => { setPaymentFilter("all"); setOrdersPage(1) },
     })
-  if (dateFilter !== "all")
-    activeFilters.push({
-      key: "date",
-      label:
-        dateFilter === "today"
-          ? "Today"
-          : dateFilter === "this_week"
-          ? "This Week"
-          : "This Month",
-      onRemove: () => setDateFilter("all"),
-    })
-
   const locked = kybStatus !== "approved"
+
+  function handleStatusFilter(v: string) { setStatusFilter(v as StatusFilter); setOrdersPage(1) }
+  function handleChannelFilter(v: string) { setChannelFilter(v as ChannelFilter); setOrdersPage(1) }
+  function handlePaymentFilter(v: string) { setPaymentFilter(v as PaymentFilter); setOrdersPage(1) }
+  function handleDateRangeChange(v: DateRangeValue) { setDateFilter(v); setOrdersPage(1) }
+  function handleSearchChange(v: string) { setSearch(v); setOrdersPage(1) }
+
+  const pagedOrders = paginate(filteredOrders, ordersPage, PAGE_SIZE)
 
   function openOrder(id: string) {
     setSelectedOrderId(id)
@@ -539,6 +589,35 @@ export default function OrdersPage() {
     toast.success(`Payment received \u2014 ${formatNaira(selectedOrder.totalAmount)}`)
   }
 
+  function handleRefund() {
+    if (!selectedOrder) return
+    const originalTxn = transactions.find(
+      (t) => t.orderId === selectedOrder.id && t.type === "payment"
+    )
+    const channel = originalTxn?.channel ?? "bank_transfer"
+    updateOrderPaymentStatus(selectedOrder.id, "refunded")
+    const randomRef = Math.floor(100000 + Math.random() * 900000).toString()
+    const newTxn: Transaction = {
+      id: `txn_${Date.now()}`,
+      reference: `RFD-${randomRef}`,
+      orderId: selectedOrder.id,
+      customerName: selectedOrder.customerName,
+      type: "refund",
+      amount: selectedOrder.totalAmount,
+      status: "successful",
+      channel,
+      description: `Refund for ${selectedOrder.reference}`,
+      matchStatus: "matched",
+      resolutionNote: null,
+      createdAt: new Date().toISOString(),
+    }
+    addTransaction(newTxn)
+    setRefundAlertOpen(false)
+    toast.success(`Refund issued — ${formatNaira(selectedOrder.totalAmount)}`, {
+      description: selectedOrder.reference,
+    })
+  }
+
   function handleWhatsApp(action: string) {
     toast.success("Message sent via WhatsApp", { description: action })
   }
@@ -567,15 +646,23 @@ export default function OrdersPage() {
           }}
         >
           <Plus className="mr-1.5 size-4" />
-          New Walk-in Order
+          New Order
         </Button>
+      </div>
+
+      {/* Live stat cards — always reflect full dataset, not filter state */}
+      <div className="grid grid-cols-4 gap-4 mb-6">
+        <StatCard label="Active Orders" value={activeOrderCount} icon={Package} />
+        <StatCard label="Completed Orders" value={completedOrderCount} icon={CheckCircle2} />
+        <StatCard label="Cancelled Orders" value={cancelledOrderCount} icon={XCircle} />
+        <StatCard label="Total Order Value" value={formatNaira(totalOrderValue)} icon={DollarSign} />
       </div>
 
       {/* Filter bar */}
       <div className="mb-2 flex flex-wrap items-center gap-3">
         <Select
           value={statusFilter}
-          onValueChange={(v) => setStatusFilter(v as StatusFilter)}
+          onValueChange={handleStatusFilter}
         >
           <SelectTrigger className="w-40">
             <SelectValue placeholder="All Statuses" />
@@ -594,7 +681,7 @@ export default function OrdersPage() {
 
         <Select
           value={channelFilter}
-          onValueChange={(v) => setChannelFilter(v as ChannelFilter)}
+          onValueChange={handleChannelFilter}
         >
           <SelectTrigger className="w-40">
             <SelectValue placeholder="All Channels" />
@@ -609,7 +696,7 @@ export default function OrdersPage() {
 
         <Select
           value={paymentFilter}
-          onValueChange={(v) => setPaymentFilter(v as PaymentFilter)}
+          onValueChange={handlePaymentFilter}
         >
           <SelectTrigger className="w-40">
             <SelectValue placeholder="All Payments" />
@@ -618,23 +705,11 @@ export default function OrdersPage() {
             <SelectItem value="all">All Payments</SelectItem>
             <SelectItem value="paid">Paid</SelectItem>
             <SelectItem value="unpaid">Unpaid</SelectItem>
+            <SelectItem value="refunded">Refunded</SelectItem>
           </SelectContent>
         </Select>
 
-        <Select
-          value={dateFilter}
-          onValueChange={(v) => setDateFilter(v as DateRangeFilter)}
-        >
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="All Time" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Time</SelectItem>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="this_week">This Week</SelectItem>
-            <SelectItem value="this_month">This Month</SelectItem>
-          </SelectContent>
-        </Select>
+        <DateRangePicker value={dateFilter} onChange={handleDateRangeChange} />
 
         <div className="relative ml-auto">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -642,7 +717,7 @@ export default function OrdersPage() {
             className="w-64 pl-9"
             placeholder="Search by customer or order ID"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
           />
         </div>
       </div>
@@ -708,7 +783,7 @@ export default function OrdersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredOrders.map((order) => (
+              {pagedOrders.map((order) => (
                 <TableRow
                   key={order.id}
                   className="cursor-pointer transition-colors hover:bg-muted/50"
@@ -747,6 +822,11 @@ export default function OrdersPage() {
             </TableBody>
           </Table>
         )}
+        {filteredOrders.length > 0 && (
+          <div className="px-5 pb-4">
+            <TablePagination currentPage={ordersPage} totalItems={filteredOrders.length} pageSize={PAGE_SIZE} onPageChange={setOrdersPage} />
+          </div>
+        )}
       </div>
 
       {/* Slide-in detail panel */}
@@ -764,11 +844,33 @@ export default function OrdersPage() {
               onAdvanceStatus={handleAdvanceStatus}
               onCancelRequest={() => setCancelAlertOpen(true)}
               onSimulatePayment={handleSimulatePayment}
+              onRefundRequest={() => setRefundAlertOpen(true)}
               onWhatsApp={handleWhatsApp}
             />
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Refund confirmation */}
+      <AlertDialog open={refundAlertOpen} onOpenChange={setRefundAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Refund this order?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will refund {selectedOrder ? formatNaira(selectedOrder.totalAmount) : ""} to the customer. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleRefund}
+            >
+              Refund {selectedOrder ? formatNaira(selectedOrder.totalAmount) : ""}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Cancel confirmation */}
       <AlertDialog open={cancelAlertOpen} onOpenChange={setCancelAlertOpen}>

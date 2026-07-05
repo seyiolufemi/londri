@@ -7,7 +7,28 @@ import type {
   OrderStatusEvent,
   Transaction,
   CustomerSubscription,
+  Payout,
+  Notification,
 } from "@/types"
+
+// ─── Date helpers ─────────────────────────────────────────────────────────────
+// All mock dates are computed relative to now so filters always show live data.
+// daysBack > 0 = past, daysBack < 0 = future.
+
+function d(daysBack: number, utcHour = 9, utcMinute = 0): string {
+  const dt = new Date()
+  dt.setUTCDate(dt.getUTCDate() - daysBack)
+  dt.setUTCHours(utcHour, utcMinute, 0, 0)
+  return dt.toISOString()
+}
+
+function monthLabel(daysBack: number): string {
+  const dt = new Date()
+  dt.setUTCDate(dt.getUTCDate() - daysBack)
+  return dt.toLocaleDateString("en-US", { month: "long", year: "numeric" })
+}
+
+// ─── Static data ──────────────────────────────────────────────────────────────
 
 export const businesses: Business[] = [
   {
@@ -272,6 +293,8 @@ export const subscriptionPlans: SubscriptionPlan[] = [
   },
 ]
 
+// ─── Subscriptions — dates relative to now ────────────────────────────────────
+
 export const customerSubscriptions: CustomerSubscription[] = [
   {
     id: "sub_001",
@@ -283,9 +306,9 @@ export const customerSubscriptions: CustomerSubscription[] = [
     status: "active",
     creditsUsed: 23,
     creditsTotal: 50,
-    startDate: "2026-06-01T00:00:00Z",
-    endDate: "2026-06-30T23:59:59Z",
-    nextBillingDate: "2026-07-01T00:00:00Z",
+    startDate: d(34, 0, 0),
+    endDate: d(-27, 23, 59),
+    nextBillingDate: d(-27, 0, 0),
   },
   {
     id: "sub_002",
@@ -297,9 +320,9 @@ export const customerSubscriptions: CustomerSubscription[] = [
     status: "active",
     creditsUsed: 18,
     creditsTotal: 20,
-    startDate: "2026-06-05T00:00:00Z",
-    endDate: "2026-07-04T23:59:59Z",
-    nextBillingDate: "2026-07-05T00:00:00Z",
+    startDate: d(30, 0, 0),
+    endDate: d(-31, 23, 59),
+    nextBillingDate: d(-31, 0, 0),
   },
   {
     id: "sub_003",
@@ -311,9 +334,9 @@ export const customerSubscriptions: CustomerSubscription[] = [
     status: "paused",
     creditsUsed: 45,
     creditsTotal: 120,
-    startDate: "2026-05-10T00:00:00Z",
-    endDate: "2026-06-09T23:59:59Z",
-    nextBillingDate: "2026-07-10T00:00:00Z",
+    startDate: d(56, 0, 0),
+    endDate: d(26, 23, 59),
+    nextBillingDate: d(-5, 0, 0),
   },
   {
     id: "sub_004",
@@ -325,11 +348,17 @@ export const customerSubscriptions: CustomerSubscription[] = [
     status: "expired",
     creditsUsed: 50,
     creditsTotal: 50,
-    startDate: "2026-05-01T00:00:00Z",
-    endDate: "2026-05-31T23:59:59Z",
-    nextBillingDate: "2026-06-01T00:00:00Z",
+    startDate: d(65, 0, 0),
+    endDate: d(35, 23, 59),
+    nextBillingDate: d(35, 0, 0),
   },
 ]
+
+// ─── Orders — dates relative to now ──────────────────────────────────────────
+// ord_001: completed ~55 days ago
+// ord_002: in_progress ~4 days ago (this week / this month)
+// ord_003: ready ~3 days ago (this week / this month)
+// ord_004: requested today
 
 export const orders: Order[] = [
   {
@@ -348,12 +377,12 @@ export const orders: Order[] = [
     paymentStatus: "paid",
     pickupAddress: "45 Akin Adesola Street, Victoria Island, Lagos",
     deliveryAddress: "45 Akin Adesola Street, Victoria Island, Lagos",
-    pickupDate: "2026-06-01T09:00:00Z",
-    estimatedDeliveryDate: "2026-06-02T17:00:00Z",
-    actualDeliveryDate: "2026-06-02T15:30:00Z",
+    pickupDate: d(55, 9, 0),
+    estimatedDeliveryDate: d(54, 17, 0),
+    actualDeliveryDate: d(54, 15, 30),
     notes: null,
-    createdAt: "2026-06-01T08:00:00Z",
-    updatedAt: "2026-06-02T15:30:00Z",
+    createdAt: d(55, 8, 0),
+    updatedAt: d(54, 15, 30),
   },
   {
     id: "ord_002",
@@ -371,12 +400,12 @@ export const orders: Order[] = [
     paymentStatus: "paid",
     pickupAddress: "12 Ogui Road, Enugu",
     deliveryAddress: "12 Ogui Road, Enugu",
-    pickupDate: "2026-06-15T10:00:00Z",
-    estimatedDeliveryDate: "2026-06-16T17:00:00Z",
+    pickupDate: d(4, 10, 0),
+    estimatedDeliveryDate: d(3, 17, 0),
     actualDeliveryDate: null,
     notes: "Handle agbada with care, embroidered",
-    createdAt: "2026-06-15T09:00:00Z",
-    updatedAt: "2026-06-15T11:00:00Z",
+    createdAt: d(4, 9, 0),
+    updatedAt: d(4, 11, 0),
   },
   {
     id: "ord_003",
@@ -394,12 +423,12 @@ export const orders: Order[] = [
     paymentStatus: "paid",
     pickupAddress: "3 Bourdillon Road, Ikoyi, Lagos",
     deliveryAddress: "3 Bourdillon Road, Ikoyi, Lagos",
-    pickupDate: "2026-06-18T08:00:00Z",
-    estimatedDeliveryDate: "2026-06-19T17:00:00Z",
+    pickupDate: d(3, 8, 0),
+    estimatedDeliveryDate: d(2, 17, 0),
     actualDeliveryDate: null,
     notes: null,
-    createdAt: "2026-06-18T07:30:00Z",
-    updatedAt: "2026-06-18T16:00:00Z",
+    createdAt: d(3, 7, 30),
+    updatedAt: d(3, 16, 0),
   },
   {
     id: "ord_004",
@@ -417,32 +446,32 @@ export const orders: Order[] = [
     paymentStatus: "unpaid",
     pickupAddress: "78 Isaac John Street, GRA Ikeja, Lagos",
     deliveryAddress: "78 Isaac John Street, GRA Ikeja, Lagos",
-    pickupDate: "2026-06-20T11:00:00Z",
-    estimatedDeliveryDate: "2026-06-22T17:00:00Z",
+    pickupDate: d(0, 11, 0),
+    estimatedDeliveryDate: d(-2, 17, 0),
     actualDeliveryDate: null,
     notes: "Curtains are blackout type",
-    createdAt: "2026-06-20T10:00:00Z",
-    updatedAt: "2026-06-20T11:30:00Z",
+    createdAt: d(0, 10, 0),
+    updatedAt: d(0, 11, 30),
   },
 ]
 
 export const orderStatusEvents: OrderStatusEvent[] = [
-  { id: "evt_001", orderId: "ord_001", status: "requested", note: "Order placed", createdAt: "2026-06-01T08:00:00Z", createdBy: "system" },
-  { id: "evt_002", orderId: "ord_001", status: "confirmed", note: "Order confirmed", createdAt: "2026-06-01T09:30:00Z", createdBy: "staff_001" },
-  { id: "evt_003", orderId: "ord_001", status: "picked_up", note: "Items picked up from customer", createdAt: "2026-06-01T11:00:00Z", createdBy: "rider_001" },
-  { id: "evt_004", orderId: "ord_001", status: "in_progress", note: "Washing in progress", createdAt: "2026-06-01T14:00:00Z", createdBy: "staff_001" },
-  { id: "evt_005", orderId: "ord_001", status: "ready", note: "Ready for delivery", createdAt: "2026-06-02T10:00:00Z", createdBy: "staff_001" },
-  { id: "evt_006", orderId: "ord_001", status: "completed", note: "Delivered to customer", createdAt: "2026-06-02T15:30:00Z", createdBy: "rider_001" },
-  { id: "evt_007", orderId: "ord_002", status: "requested", note: "Order placed", createdAt: "2026-06-15T09:00:00Z", createdBy: "system" },
-  { id: "evt_008", orderId: "ord_002", status: "confirmed", note: "Order confirmed", createdAt: "2026-06-15T10:30:00Z", createdBy: "staff_002" },
-  { id: "evt_009", orderId: "ord_002", status: "picked_up", note: "Items picked up", createdAt: "2026-06-15T12:00:00Z", createdBy: "rider_001" },
-  { id: "evt_010", orderId: "ord_002", status: "in_progress", note: "Hand-washing agbada", createdAt: "2026-06-15T14:00:00Z", createdBy: "staff_002" },
-  { id: "evt_011", orderId: "ord_003", status: "requested", note: "Order placed", createdAt: "2026-06-18T07:30:00Z", createdBy: "system" },
-  { id: "evt_012", orderId: "ord_003", status: "confirmed", note: "Order confirmed", createdAt: "2026-06-18T08:30:00Z", createdBy: "staff_001" },
-  { id: "evt_013", orderId: "ord_003", status: "picked_up", note: "Items picked up", createdAt: "2026-06-18T10:00:00Z", createdBy: "rider_001" },
-  { id: "evt_014", orderId: "ord_003", status: "in_progress", note: "Dry cleaning in progress", createdAt: "2026-06-18T11:00:00Z", createdBy: "staff_001" },
-  { id: "evt_015", orderId: "ord_003", status: "ready", note: "Suits pressed and bagged", createdAt: "2026-06-18T16:00:00Z", createdBy: "staff_001" },
-  { id: "evt_016", orderId: "ord_004", status: "requested", note: "Order placed", createdAt: "2026-06-20T10:00:00Z", createdBy: "system" },
+  { id: "evt_001", orderId: "ord_001", status: "requested",  note: "Order placed",                createdAt: d(55, 8, 0),  createdBy: "system"    },
+  { id: "evt_002", orderId: "ord_001", status: "confirmed",  note: "Order confirmed",              createdAt: d(55, 9, 30), createdBy: "staff_001" },
+  { id: "evt_003", orderId: "ord_001", status: "picked_up",  note: "Items picked up from customer",createdAt: d(55, 11, 0), createdBy: "rider_001" },
+  { id: "evt_004", orderId: "ord_001", status: "in_progress",note: "Washing in progress",          createdAt: d(55, 14, 0), createdBy: "staff_001" },
+  { id: "evt_005", orderId: "ord_001", status: "ready",      note: "Ready for delivery",           createdAt: d(54, 10, 0), createdBy: "staff_001" },
+  { id: "evt_006", orderId: "ord_001", status: "completed",  note: "Delivered to customer",        createdAt: d(54, 15, 30),createdBy: "rider_001" },
+  { id: "evt_007", orderId: "ord_002", status: "requested",  note: "Order placed",                 createdAt: d(4, 9, 0),   createdBy: "system"    },
+  { id: "evt_008", orderId: "ord_002", status: "confirmed",  note: "Order confirmed",              createdAt: d(4, 10, 30), createdBy: "staff_002" },
+  { id: "evt_009", orderId: "ord_002", status: "picked_up",  note: "Items picked up",              createdAt: d(4, 12, 0),  createdBy: "rider_001" },
+  { id: "evt_010", orderId: "ord_002", status: "in_progress",note: "Hand-washing agbada",          createdAt: d(4, 14, 0),  createdBy: "staff_002" },
+  { id: "evt_011", orderId: "ord_003", status: "requested",  note: "Order placed",                 createdAt: d(3, 7, 30),  createdBy: "system"    },
+  { id: "evt_012", orderId: "ord_003", status: "confirmed",  note: "Order confirmed",              createdAt: d(3, 8, 30),  createdBy: "staff_001" },
+  { id: "evt_013", orderId: "ord_003", status: "picked_up",  note: "Items picked up",              createdAt: d(3, 10, 0),  createdBy: "rider_001" },
+  { id: "evt_014", orderId: "ord_003", status: "in_progress",note: "Dry cleaning in progress",     createdAt: d(3, 11, 0),  createdBy: "staff_001" },
+  { id: "evt_015", orderId: "ord_003", status: "ready",      note: "Suits pressed and bagged",     createdAt: d(3, 16, 0),  createdBy: "staff_001" },
+  { id: "evt_016", orderId: "ord_004", status: "requested",  note: "Order placed",                 createdAt: d(0, 10, 0),  createdBy: "system"    },
 ]
 
 export const itemCategories: string[] = [
@@ -451,6 +480,13 @@ export const itemCategories: string[] = [
   "Household",
   "Specialty",
 ]
+
+// ─── Transactions — spread across last 3 months, concentrated in current week/month
+// txn_001 & txn_002: ~55 days ago (last 3 months range)
+// txn_006: ~35 days ago (last month)
+// txn_003: ~4 days ago (this week + this month)
+// txn_004: ~3 days ago (this week + this month)
+// txn_005: today (today + this week + this month)
 
 export const transactions: Transaction[] = [
   {
@@ -463,7 +499,9 @@ export const transactions: Transaction[] = [
     status: "successful",
     channel: "card",
     description: "Payment for order LDR-20260601-0001",
-    createdAt: "2026-06-01T08:05:00Z",
+    matchStatus: "matched",
+    resolutionNote: null,
+    createdAt: d(55, 8, 5),
   },
   {
     id: "txn_002",
@@ -474,44 +512,10 @@ export const transactions: Transaction[] = [
     amount: 22000,
     status: "successful",
     channel: "card",
-    description: "Standard plan subscription - June 2026",
-    createdAt: "2026-06-01T00:01:00Z",
-  },
-  {
-    id: "txn_003",
-    reference: "PAY-20260615-GHI789",
-    orderId: "ord_002",
-    customerName: "Ngozi Eze",
-    type: "payment",
-    amount: 10500,
-    status: "successful",
-    channel: "bank_transfer",
-    description: "Payment for order LDR-20260615-0002",
-    createdAt: "2026-06-15T09:05:00Z",
-  },
-  {
-    id: "txn_004",
-    reference: "PAY-20260618-JKL012",
-    orderId: "ord_003",
-    customerName: "Segun Lawal",
-    type: "payment",
-    amount: 11500,
-    status: "successful",
-    channel: "card",
-    description: "Payment for order LDR-20260618-0003",
-    createdAt: "2026-06-18T07:35:00Z",
-  },
-  {
-    id: "txn_005",
-    reference: "PAY-20260620-MNO345",
-    orderId: "ord_004",
-    customerName: "Babajide Ogundimu",
-    type: "payment",
-    amount: 17000,
-    status: "pending",
-    channel: "ussd",
-    description: "Payment for order LDR-20260620-0004",
-    createdAt: "2026-06-20T10:05:00Z",
+    description: "Standard plan subscription renewal",
+    matchStatus: "matched",
+    resolutionNote: null,
+    createdAt: d(55, 0, 1),
   },
   {
     id: "txn_006",
@@ -523,6 +527,256 @@ export const transactions: Transaction[] = [
     status: "successful",
     channel: "bank_transfer",
     description: "Partial refund - damaged item claim",
-    createdAt: "2026-06-10T13:00:00Z",
+    matchStatus: "unmatched",
+    resolutionNote: null,
+    createdAt: d(35, 13, 0),
+  },
+  {
+    id: "txn_003",
+    reference: "PAY-20260615-GHI789",
+    orderId: "ord_002",
+    customerName: "Ngozi Eze",
+    type: "payment",
+    amount: 10500,
+    status: "successful",
+    channel: "bank_transfer",
+    description: "Payment for order LDR-20260615-0002",
+    matchStatus: "matched",
+    resolutionNote: null,
+    createdAt: d(4, 9, 5),
+  },
+  {
+    id: "txn_004",
+    reference: "PAY-20260618-JKL012",
+    orderId: "ord_003",
+    customerName: "Segun Lawal",
+    type: "payment",
+    amount: 11500,
+    status: "successful",
+    channel: "card",
+    description: "Payment for order LDR-20260618-0003",
+    matchStatus: "matched",
+    resolutionNote: null,
+    createdAt: d(3, 7, 35),
+  },
+  {
+    id: "txn_005",
+    reference: "PAY-20260620-MNO345",
+    orderId: "ord_004",
+    customerName: "Babajide Ogundimu",
+    type: "payment",
+    amount: 17000,
+    status: "pending",
+    channel: "ussd",
+    description: "Payment for order LDR-20260620-0004",
+    matchStatus: "unmatched",
+    resolutionNote: null,
+    createdAt: d(0, 10, 5),
+  },
+]
+
+// ─── Payouts — relative dates (most recent first) ─────────────────────────────
+
+export const payouts: Payout[] = [
+  {
+    id: "payout_001",
+    businessId: "biz_001",
+    amount: 500000,
+    status: "completed",
+    bankReference: "NMB-391047",
+    period: monthLabel(5),
+    createdAt: d(5, 14, 0),
+  },
+  {
+    id: "payout_002",
+    businessId: "biz_001",
+    amount: 750000,
+    status: "completed",
+    bankReference: "NMB-284736",
+    period: monthLabel(37),
+    createdAt: d(37, 10, 30),
+  },
+  {
+    id: "payout_003",
+    businessId: "biz_001",
+    amount: 600000,
+    status: "completed",
+    bankReference: "NMB-193847",
+    period: monthLabel(67),
+    createdAt: d(67, 11, 0),
+  },
+]
+
+// ─── Notifications — relative Date objects, newest first ─────────────────────
+
+function hoursAgo(h: number): Date {
+  return new Date(Date.now() - h * 60 * 60 * 1000)
+}
+function daysAgo(days: number, extraHours = 0): Date {
+  return new Date(Date.now() - (days * 24 + extraHours) * 60 * 60 * 1000)
+}
+
+export const notifications: Notification[] = [
+  {
+    id: "ntf_001",
+    type: "new_order",
+    title: "New order received",
+    message: "Babajide Ogundimu placed order #LDR-20260620-0004 for ₦17,000. Items include 1 Duvet (Single) and 4 Curtain panels.",
+    read: false,
+    createdAt: hoursAgo(2),
+    linkTo: "/orders",
+  },
+  {
+    id: "ntf_002",
+    type: "payment_received",
+    title: "Payment received",
+    message: "₦11,500 received from Segun Lawal for order #LDR-20260618-0003 via card.",
+    read: false,
+    createdAt: hoursAgo(3),
+    linkTo: "/transactions",
+  },
+  {
+    id: "ntf_003",
+    type: "new_subscriber",
+    title: "New subscriber",
+    message: "Chidinma Obi has subscribed to the Premium plan at ₦42,000/month.",
+    read: false,
+    createdAt: hoursAgo(5),
+    linkTo: "/subscriptions",
+  },
+  {
+    id: "ntf_004",
+    type: "unmatched_transaction",
+    title: "Unmatched transaction",
+    message: "A bank transfer of ₦17,000 received today could not be automatically matched to any order. Please review.",
+    read: false,
+    createdAt: hoursAgo(8),
+    linkTo: "/transactions",
+  },
+  {
+    id: "ntf_005",
+    type: "new_order",
+    title: "New order received",
+    message: "Segun Lawal placed order #LDR-20260618-0003 for ₦11,500. Includes 2 suits and 1 gown for dry cleaning.",
+    read: false,
+    createdAt: daysAgo(1, 2),
+    linkTo: "/orders",
+  },
+  {
+    id: "ntf_006",
+    type: "payment_received",
+    title: "Payment received",
+    message: "₦10,500 received from Ngozi Eze for order #LDR-20260615-0002 via bank transfer.",
+    read: false,
+    createdAt: daysAgo(1, 5),
+    linkTo: "/transactions",
+  },
+  {
+    id: "ntf_007",
+    type: "kyb_status",
+    title: "KYB documents under review",
+    message: "Your verification documents have been received and are currently under review. You'll be notified once the process is complete.",
+    read: true,
+    createdAt: daysAgo(2),
+    linkTo: "/settings",
+  },
+  {
+    id: "ntf_008",
+    type: "withdrawal_completed",
+    title: "Withdrawal completed",
+    message: "Your withdrawal of ₦85,000 to GTBank (****6789) has been processed and should arrive within 1 business day.",
+    read: true,
+    createdAt: daysAgo(3),
+    linkTo: "/transactions",
+  },
+  {
+    id: "ntf_009",
+    type: "new_order",
+    title: "New order received",
+    message: "Ngozi Eze placed order #LDR-20260615-0002 for ₦10,500. Includes Agbada (complete set) and 2 bed sheets.",
+    read: true,
+    createdAt: daysAgo(4, 3),
+    linkTo: "/orders",
+  },
+  {
+    id: "ntf_010",
+    type: "new_subscriber",
+    title: "New subscriber",
+    message: "Kemi Abubakar has subscribed to the Standard plan at ₦22,000/month.",
+    read: true,
+    createdAt: daysAgo(5),
+    linkTo: "/subscriptions",
+  },
+  {
+    id: "ntf_011",
+    type: "payment_received",
+    title: "Payment received",
+    message: "₦4,000 received from Tunde Adeyemi for order #LDR-20260601-0001 via card.",
+    read: true,
+    createdAt: daysAgo(7),
+    linkTo: "/transactions",
+  },
+  {
+    id: "ntf_012",
+    type: "unmatched_transaction",
+    title: "Unmatched transaction",
+    message: "A bank transfer of ₦22,000 received 8 days ago is still unmatched. Review and resolve in your transactions.",
+    read: true,
+    createdAt: daysAgo(8),
+    linkTo: "/transactions",
+  },
+  {
+    id: "ntf_013",
+    type: "new_order",
+    title: "New order received",
+    message: "Femi Okafor placed a new order for ₦6,800. Items include 3 Plain Shirts and 2 Trousers.",
+    read: true,
+    createdAt: daysAgo(10),
+    linkTo: "/orders",
+  },
+  {
+    id: "ntf_014",
+    type: "withdrawal_completed",
+    title: "Withdrawal completed",
+    message: "Your withdrawal of ₦120,000 to GTBank (****6789) has been settled and credited to your account.",
+    read: true,
+    createdAt: daysAgo(12),
+    linkTo: "/transactions",
+  },
+  {
+    id: "ntf_015",
+    type: "kyb_status",
+    title: "Business verification approved",
+    message: "Congratulations! Your KYB documents have been reviewed and approved. Your account is now fully verified.",
+    read: true,
+    createdAt: daysAgo(14),
+    linkTo: "/settings",
+  },
+  {
+    id: "ntf_016",
+    type: "payment_received",
+    title: "Payment received",
+    message: "₦8,500 received from Seun Bello via card. The order has been confirmed and is now in progress.",
+    read: true,
+    createdAt: daysAgo(16),
+    linkTo: "/transactions",
+  },
+  {
+    id: "ntf_017",
+    type: "new_subscriber",
+    title: "New subscriber",
+    message: "Emeka Chukwu has subscribed to the Starter plan at ₦10,000/month.",
+    read: true,
+    createdAt: daysAgo(18),
+    linkTo: "/subscriptions",
+  },
+  {
+    id: "ntf_018",
+    type: "unmatched_transaction",
+    title: "Unmatched transaction",
+    message: "A cash payment of ₦5,500 received at walk-in could not be matched to any pending order.",
+    read: true,
+    createdAt: daysAgo(20),
+    linkTo: "/transactions",
   },
 ]

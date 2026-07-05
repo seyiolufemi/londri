@@ -12,21 +12,16 @@ import {
   Link as LinkIcon,
   RefreshCw,
   Search,
+  Lock,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useStore } from "@/lib/mock/store"
+import { useKybStatus } from "@/lib/hooks/useKybStatus"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
 import type {
   Order,
   OrderItem,
@@ -34,7 +29,9 @@ import type {
   CustomerSubscription,
   PriceListItem,
   PriceCategory,
+  Transaction,
 } from "@/types"
+import StartSubscriptionDialog from "@/components/shared/StartSubscriptionDialog"
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -45,13 +42,6 @@ const CATEGORY_LABELS: Record<PriceCategory, string> = {
   bedding: "Bedding",
   household: "Household",
   specialty: "Specialty",
-}
-
-const BILLING_SUFFIX: Record<string, string> = {
-  weekly: "/week",
-  monthly: "/month",
-  quarterly: "/quarter",
-  annually: "/year",
 }
 
 interface AddedItem {
@@ -91,19 +81,11 @@ function generateReference(ordersLength: number): string {
   return `LDR-${y}${m}${d}-${seq}`
 }
 
-function getSubscriptionEndDate(start: Date, cycle: string): Date {
-  const end = new Date(start)
-  if (cycle === "weekly") end.setDate(end.getDate() + 7)
-  else if (cycle === "monthly") end.setMonth(end.getMonth() + 1)
-  else if (cycle === "quarterly") end.setMonth(end.getMonth() + 3)
-  else end.setFullYear(end.getFullYear() + 1)
-  return end
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CreateOrderPage() {
   const router = useRouter()
+  const { kybStatus } = useKybStatus()
 
   const orders = useStore((s) => s.orders)
   const priceListItems = useStore((s) => s.priceListItems)
@@ -111,7 +93,7 @@ export default function CreateOrderPage() {
   const customerSubscriptions = useStore((s) => s.customerSubscriptions)
   const addOrder = useStore((s) => s.addOrder)
   const addOrderStatusEvent = useStore((s) => s.addOrderStatusEvent)
-  const addCustomerSubscription = useStore((s) => s.addCustomerSubscription)
+  const addTransaction = useStore((s) => s.addTransaction)
 
   // ── Customer fields ──
   const [customerName, setCustomerName] = useState("")
@@ -142,55 +124,9 @@ export default function CreateOrderPage() {
 
   // ── Start Subscription dialog ──
   const [subDialogOpen, setSubDialogOpen] = useState(false)
-  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
-
-  const activePlans = useMemo(
-    () => subscriptionPlans.filter((p) => p.isActive),
-    [subscriptionPlans]
-  )
 
   const phoneDigits = normalizePhone(customerPhone)
   const showSubTrigger = phoneDigits.length >= 10 && detectedSub === null
-
-  function openSubDialog() {
-    setSelectedPlanId(null)
-    setSubDialogOpen(true)
-  }
-
-  function handleConfirmSubscription() {
-    if (!selectedPlanId) return
-    const plan = subscriptionPlans.find((p) => p.id === selectedPlanId)
-    if (!plan) return
-
-    const now = new Date()
-    const endDate = getSubscriptionEndDate(now, plan.billingCycle)
-    const nowIso = now.toISOString()
-    const endIso = endDate.toISOString()
-
-    const newSub: CustomerSubscription = {
-      id: `sub_${Date.now()}`,
-      customerId: `cust_${Date.now()}`,
-      customerName: customerName.trim() || "Customer",
-      customerPhone: customerPhone.trim(),
-      planId: plan.id,
-      planName: plan.name,
-      status: "active",
-      creditsUsed: 0,
-      creditsTotal: plan.credits,
-      startDate: nowIso,
-      endDate: endIso,
-      nextBillingDate: endIso,
-    }
-
-    addCustomerSubscription(newSub)
-    setDetectedSub(newSub)
-    setSubDialogOpen(false)
-
-    const name = customerName.trim() || "customer"
-    toast.success(`Subscription created for ${name}`, {
-      description: `${plan.name} — ${formatNaira(plan.price)}${BILLING_SUFFIX[plan.billingCycle] ?? "/month"}`,
-    })
-  }
 
   // ── Items ──
   const [addedItems, setAddedItems] = useState<AddedItem[]>([])
@@ -349,8 +285,46 @@ export default function CreateOrderPage() {
     addOrder(newOrder)
     addOrderStatusEvent(confirmedEvent)
 
+    if (paymentMethod === "counter") {
+      const randomRef = Math.floor(100000 + Math.random() * 900000).toString()
+      const txn: Transaction = {
+        id: `txn_${Date.now()}`,
+        reference: `NMB-${randomRef}`,
+        orderId,
+        customerName: customerName.trim(),
+        type: "payment",
+        amount: totalAmount,
+        status: "successful",
+        channel: "bank_transfer",
+        description: `Payment for ${reference}`,
+        matchStatus: "matched",
+        resolutionNote: null,
+        createdAt: now,
+      }
+      addTransaction(txn)
+    }
+
     toast.success("Order created successfully", { description: reference })
     router.push("/orders")
+  }
+
+  // ── Blocked state ────────────────────────────────────────────────────────────
+
+  if (kybStatus !== "approved") {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <Lock className="size-8 text-muted-foreground" />
+        <p className="mt-3 text-base font-medium text-foreground">
+          Complete verification to create orders
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          You&apos;ll be able to create orders once your business is verified.
+        </p>
+        <Button variant="outline" className="mt-4" onClick={() => router.push("/orders")}>
+          Back to Orders
+        </Button>
+      </div>
+    )
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -361,11 +335,6 @@ export default function CreateOrderPage() {
       : paymentMethod === "subscription"
       ? "Create Order & Deduct from Subscription"
       : "Create Order"
-
-  const selectedPlan = selectedPlanId
-    ? (activePlans.find((p) => p.id === selectedPlanId) ?? null)
-    : null
-  const dialogCustomerLabel = customerName.trim() || "this customer"
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -472,7 +441,7 @@ export default function CreateOrderPage() {
             {showSubTrigger && (
               <button
                 type="button"
-                onClick={openSubDialog}
+                onClick={() => setSubDialogOpen(true)}
                 className="mt-1 self-start text-sm text-primary hover:underline"
               >
                 Not a subscriber? Start a subscription for this customer &rarr;
@@ -731,95 +700,12 @@ export default function CreateOrderPage() {
       </div>
 
       {/* ── Start Subscription Dialog ── */}
-      <Dialog open={subDialogOpen} onOpenChange={setSubDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Start a Subscription</DialogTitle>
-            <p className="text-sm text-muted-foreground">
-              Subscribe {dialogCustomerLabel} to a plan
-            </p>
-          </DialogHeader>
-
-          {/* Plan selector cards */}
-          <div className="flex flex-col gap-3 py-2">
-            {activePlans.length === 0 ? (
-              <p className="py-4 text-center text-sm text-muted-foreground">
-                No active plans available. Add plans in Subscriptions.
-              </p>
-            ) : (
-              activePlans.map((plan) => (
-                <button
-                  key={plan.id}
-                  type="button"
-                  onClick={() => setSelectedPlanId(plan.id)}
-                  className={cn(
-                    "w-full rounded-lg border p-4 text-left transition-colors",
-                    selectedPlanId === plan.id
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:bg-muted/50"
-                  )}
-                >
-                  {/* Plan name + price */}
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-sm font-semibold text-foreground">
-                      {plan.name}
-                    </span>
-                    <span className="text-sm font-medium tabular-nums text-foreground">
-                      {formatNaira(plan.price)}
-                      <span className="font-normal text-muted-foreground">
-                        {BILLING_SUFFIX[plan.billingCycle] ?? "/month"}
-                      </span>
-                    </span>
-                  </div>
-
-                  {/* Item cap + categories */}
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    <span className="text-xs text-muted-foreground">
-                      {plan.credits} items
-                    </span>
-                    <span className="text-xs text-muted-foreground">·</span>
-                    {plan.categories.map((cat) => (
-                      <span
-                        key={cat}
-                        className="rounded-md bg-muted px-1.5 py-0.5 text-xs text-muted-foreground"
-                      >
-                        {CATEGORY_LABELS[cat]}
-                      </span>
-                    ))}
-                  </div>
-                </button>
-              ))
-            )}
-
-            {/* Summary line */}
-            {selectedPlan && (
-              <p className="text-sm text-muted-foreground">
-                This will subscribe {dialogCustomerLabel} to{" "}
-                <span className="font-medium text-foreground">
-                  {selectedPlan.name}
-                </span>{" "}
-                for {formatNaira(selectedPlan.price)}
-                {BILLING_SUFFIX[selectedPlan.billingCycle] ?? "/month"}
-              </p>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setSubDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              disabled={selectedPlanId === null}
-              onClick={handleConfirmSubscription}
-            >
-              Confirm Subscription
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <StartSubscriptionDialog
+        open={subDialogOpen}
+        onOpenChange={setSubDialogOpen}
+        prefilledCustomer={{ name: customerName, phone: customerPhone }}
+        onSubscriptionCreated={setDetectedSub}
+      />
     </div>
   )
 }
