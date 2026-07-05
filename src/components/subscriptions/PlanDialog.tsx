@@ -84,7 +84,11 @@ export default function PlanDialog({ open, onOpenChange, editingPlan, categories
           price: String(editingPlan.price),
           billingCycle: editingPlan.billing_cycle === "weekly" ? "weekly" : "monthly",
           itemCap: String(editingPlan.item_cap),
-          categoryIds: editingPlan.eligible_category_ids,
+          // editingPlan.eligible_categories holds names, not ids; match back to
+          // the category list (passed in as a prop) to pre-check the right boxes.
+          categoryIds: editingPlan.eligible_categories
+            .map((name) => categories.find((c) => c.name === name)?.id)
+            .filter((id): id is string => Boolean(id)),
           description: editingPlan.description,
         })
       } else {

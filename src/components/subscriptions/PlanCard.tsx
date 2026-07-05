@@ -6,7 +6,6 @@ import { BILLING_LABELS, formatNaira } from "./constants"
 
 interface PlanCardProps {
   plan: SubscriptionPlan
-  categoryNameById: Record<string, string>
   activeSubscriberCount: number
   isDeactivating: boolean
   onEdit: () => void
@@ -15,7 +14,6 @@ interface PlanCardProps {
 
 export default function PlanCard({
   plan,
-  categoryNameById,
   activeSubscriberCount,
   isDeactivating,
   onEdit,
@@ -63,12 +61,12 @@ export default function PlanCard({
         <div className="flex items-start gap-2">
           <Tag className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
           <div className="flex flex-wrap gap-1">
-            {plan.eligible_category_ids.map((id) => (
+            {plan.eligible_categories.map((name) => (
               <span
-                key={id}
+                key={name}
                 className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground"
               >
-                {categoryNameById[id] ?? id}
+                {name}
               </span>
             ))}
           </div>

@@ -46,10 +46,6 @@ export default function SubscriptionsPage() {
     isFetching: categoriesFetching,
   } = useGetCategoriesQuery(businessId ?? "", { skip: !businessId })
   const categories = useMemo(() => categoriesData ?? [], [categoriesData])
-  const categoryNameById = useMemo(
-    () => Object.fromEntries(categories.map((c) => [c.id, c.name])),
-    [categories]
-  )
 
   const {
     data: plans = [],
@@ -159,7 +155,6 @@ export default function SubscriptionsPage() {
       <PlansSection
         loading={isLoadingPlans}
         plans={plans}
-        categoryNameById={categoryNameById}
         activeSubsByPlan={activeSubsByPlan}
         deactivatingId={deactivatingId}
         onEdit={openEditDialog}

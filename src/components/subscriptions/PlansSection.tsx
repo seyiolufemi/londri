@@ -6,7 +6,6 @@ import PlanCard from "./PlanCard"
 interface PlansSectionProps {
   loading: boolean
   plans: SubscriptionPlan[]
-  categoryNameById: Record<string, string>
   activeSubsByPlan: Record<string, number>
   deactivatingId: string | null
   onEdit: (plan: SubscriptionPlan) => void
@@ -33,7 +32,6 @@ function PlanCardSkeleton() {
 export default function PlansSection({
   loading,
   plans,
-  categoryNameById,
   activeSubsByPlan,
   deactivatingId,
   onEdit,
@@ -66,7 +64,6 @@ export default function PlansSection({
         <PlanCard
           key={plan.id}
           plan={plan}
-          categoryNameById={categoryNameById}
           activeSubscriberCount={activeSubsByPlan[plan.id] ?? 0}
           isDeactivating={deactivatingId === plan.id}
           onEdit={() => onEdit(plan)}
