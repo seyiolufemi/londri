@@ -11,7 +11,6 @@ import type {
   OrderStatusEvent,
   Transaction,
   CustomerSubscription,
-  KybStatus,
   OrderStatus,
   Payout,
   PayoutStatus,
@@ -64,9 +63,6 @@ interface StoreState {
   setKybData: (data: Partial<KybFormData>) => void
   setKybStep: (step: 1 | 2 | 3 | 4) => void
   resetKybData: () => void
-
-  kybStatus: KybStatus
-  setKybStatus: (status: KybStatus) => void
 
   businesses: Business[]
   kybSubmissions: KybSubmission[]
@@ -190,9 +186,6 @@ export const useStore = create<StoreState>()(
   setKybData: (data) => set((state) => ({ kybData: { ...state.kybData, ...data } })),
   setKybStep: (kybStep) => set({ kybStep }),
   resetKybData: () => set({ kybStep: 1, kybData: EMPTY_KYB_DATA }),
-
-  kybStatus: "pending",
-  setKybStatus: (kybStatus) => set({ kybStatus }),
 
   businesses: initialBusinesses,
   kybSubmissions: initialKybSubmissions,
