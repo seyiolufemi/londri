@@ -240,18 +240,24 @@ export default function PlanDialog({ open, onOpenChange, editingPlan, categories
 
           <div>
             <Label className="mb-2 block text-sm">Eligible categories</Label>
-            <div className="flex flex-wrap gap-3">
-              {categories.map((cat) => (
-                <label key={cat.id} className="flex cursor-pointer items-center gap-2">
-                  <Checkbox
-                    id={`cat-${cat.id}`}
-                    checked={form.categoryIds.includes(cat.id)}
-                    onCheckedChange={() => toggleCategory(cat.id)}
-                  />
-                  <span className="text-sm text-foreground">{cat.name}</span>
-                </label>
-              ))}
-            </div>
+            {categories.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                No categories yet — add one via the price list&apos;s &quot;Manage Categories&quot; first.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-3">
+                {categories.map((cat) => (
+                  <label key={cat.id} className="flex cursor-pointer items-center gap-2">
+                    <Checkbox
+                      id={`cat-${cat.id}`}
+                      checked={form.categoryIds.includes(cat.id)}
+                      onCheckedChange={() => toggleCategory(cat.id)}
+                    />
+                    <span className="text-sm text-foreground">{cat.name}</span>
+                  </label>
+                ))}
+              </div>
+            )}
             {errors.categoryIds && (
               <p className="mt-1 text-xs text-destructive">{errors.categoryIds}</p>
             )}

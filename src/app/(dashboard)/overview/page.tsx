@@ -239,7 +239,7 @@ const CustomTooltip = ({
 
 export default function OverviewPage() {
   const router = useRouter()
-  const { kybStatus } = useKybStatus()
+  const { data: business } = useGetMyBusinessQuery()
   const [dateFilter, setDateFilter] = useState<DateRangeValue>("this_month")
   const [withdrawOpen, setWithdrawOpen] = useState(false)
 
@@ -248,7 +248,7 @@ export default function OverviewPage() {
   const customerSubscriptions = useStore((s) => s.customerSubscriptions)
   const availableBalance = useStore((s) => s.availableBalance)
 
-  const locked = kybStatus !== "approved"
+  const locked = business?.current_kyb_status !== "verified"
 
   const totalRevenue = useMemo(() => {
     return transactions
