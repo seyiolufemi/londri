@@ -16,7 +16,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { useStore } from "@/lib/mock/store"
-import { useKybStatus } from "@/lib/hooks/useKybStatus"
+import { useGetMyBusinessQuery } from "@/redux/api/businessApi"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -85,7 +85,7 @@ function generateReference(ordersLength: number): string {
 
 export default function CreateOrderPage() {
   const router = useRouter()
-  const { kybStatus } = useKybStatus()
+  const { data: business } = useGetMyBusinessQuery()
 
   const orders = useStore((s) => s.orders)
   const priceListItems = useStore((s) => s.priceListItems)
@@ -310,7 +310,7 @@ export default function CreateOrderPage() {
 
   // ── Blocked state ────────────────────────────────────────────────────────────
 
-  if (kybStatus !== "approved") {
+  if (business?.current_kyb_status !== "verified") {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
         <Lock className="size-8 text-muted-foreground" />

@@ -17,7 +17,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { useStore } from "@/lib/mock/store"
-import { useKybStatus } from "@/lib/hooks/useKybStatus"
+import { useGetMyBusinessQuery } from "@/redux/api/businessApi"
 import StatusBadge from "@/components/shared/StatusBadge"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -459,7 +459,7 @@ function OrderDetailPanel({
 
 export default function OrdersPage() {
   const router = useRouter()
-  const { kybStatus } = useKybStatus()
+  const { data: business } = useGetMyBusinessQuery()
   const orders = useStore((s) => s.orders)
   const orderStatusEvents = useStore((s) => s.orderStatusEvents)
   const transactions = useStore((s) => s.transactions)
@@ -550,7 +550,7 @@ export default function OrdersPage() {
       label: PAYMENT_CONFIG[paymentFilter].label,
       onRemove: () => { setPaymentFilter("all"); setOrdersPage(1) },
     })
-  const locked = kybStatus !== "approved"
+  const locked = business?.current_kyb_status !== "verified"
 
   function handleStatusFilter(v: string) { setStatusFilter(v as StatusFilter); setOrdersPage(1) }
   function handleChannelFilter(v: string) { setChannelFilter(v as ChannelFilter); setOrdersPage(1) }

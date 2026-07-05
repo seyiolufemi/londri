@@ -8,7 +8,6 @@ import Header from "@/components/layout/Header"
 import DemoToggle from "@/components/layout/DemoToggle"
 import { useGetMyBusinessQuery } from "@/redux/api/businessApi"
 import { toKybStatus } from "@/lib/kybStatus"
-}
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter()

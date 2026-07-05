@@ -25,7 +25,7 @@ import {
 } from "recharts"
 import { toast } from "sonner"
 import { useStore } from "@/lib/mock/store"
-import { useKybStatus } from "@/lib/hooks/useKybStatus"
+import { useGetMyBusinessQuery } from "@/redux/api/businessApi"
 import StatusBadge from "@/components/shared/StatusBadge"
 import { cn } from "@/lib/utils"
 import DateRangePicker, { isDateInRange, type DateRangeValue, type PresetKey } from "@/components/shared/DateRangePicker"

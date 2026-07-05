@@ -6,7 +6,8 @@ import { CheckCircle2, Clock, XCircle, Check, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { useStore } from "@/lib/mock/store"
 import type { BusinessProfileSettings, OperatingDay } from "@/lib/mock/store"
-import { useKybStatus } from "@/lib/hooks/useKybStatus"
+import { useGetMyBusinessQuery } from "@/redux/api/businessApi"
+import { toKybStatus } from "@/lib/kybStatus"
 import UploadZone from "@/components/shared/UploadZone"
 import { cn } from "@/lib/utils"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -150,7 +151,8 @@ function VerificationTab({
 
 export default function SettingsPage() {
   const router = useRouter()
-  const { kybStatus } = useKybStatus()
+  const { data: business, isLoading: businessLoading } = useGetMyBusinessQuery()
+  const kybStatus = toKybStatus(business?.current_kyb_status, businessLoading)
 
   const priceListItems = useStore((s) => s.priceListItems)
   const businessProfile = useStore((s) => s.businessProfile)

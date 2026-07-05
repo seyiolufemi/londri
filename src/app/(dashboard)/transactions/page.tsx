@@ -4,7 +4,7 @@ import { useState, useMemo, type ReactNode } from "react"
 import { Wallet } from "lucide-react"
 import { toast } from "sonner"
 import { useStore } from "@/lib/mock/store"
-import { useKybStatus } from "@/lib/hooks/useKybStatus"
+import { useGetMyBusinessQuery } from "@/redux/api/businessApi"
 import type { Transaction, Payout } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -253,14 +253,14 @@ function StatCard({ label, value, icon, action }: StatCardProps) {
 const PAGE_SIZE = 10
 
 export default function TransactionsPage() {
-  const { kybStatus } = useKybStatus()
+  const { data: business } = useGetMyBusinessQuery()
   const transactions = useStore((s) => s.transactions)
   const orders = useStore((s) => s.orders)
   const payouts = useStore((s) => s.payouts)
   const availableBalance = useStore((s) => s.availableBalance)
   const totalPaidOut = useStore((s) => s.totalPaidOut)
 
-  const isApproved = kybStatus === "approved"
+  const isApproved = business?.current_kyb_status === "verified"
 
   const [withdrawOpen, setWithdrawOpen] = useState(false)
   const [typeFilter, setTypeFilter] = useState("all")
