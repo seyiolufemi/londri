@@ -33,7 +33,7 @@ export interface CreateOrderRequest {
   items: OrderLineItemRequest[]
   channel: OrderChannel
   customer_name: string
-  customer_email?: string
+  customer_email: string
   customer_whatsapp?: string
   to_be_delivered: boolean
   delivery_address?: string

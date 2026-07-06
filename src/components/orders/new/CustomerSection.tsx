@@ -13,6 +13,7 @@ interface CustomerSectionProps {
   onEmailChange: (v: string) => void
   nameError?: string
   phoneError?: string
+  emailError?: string
   detectedSub: CustomerSubscription | null
   remainingCredits: number
   showSubTrigger: boolean
@@ -28,6 +29,7 @@ export default function CustomerSection({
   onEmailChange,
   nameError,
   phoneError,
+  emailError,
   detectedSub,
   remainingCredits,
   showSubTrigger,
@@ -85,17 +87,20 @@ export default function CustomerSection({
           )}
         </div>
 
-        {/* Email (optional) */}
+        {/* Email */}
         <div>
           <Label htmlFor="customer-email" className="mb-1.5 block text-sm">
-            Email <span className="font-normal text-muted-foreground">(optional)</span>
+            Email
           </Label>
           <Input
             id="customer-email"
+            type="email"
             placeholder="customer@email.com"
             value={email}
             onChange={(e) => onEmailChange(e.target.value)}
+            className={cn(emailError && "border-destructive")}
           />
+          {emailError && <p className="mt-1 text-xs text-destructive">{emailError}</p>}
         </div>
 
         {/* Start subscription trigger — visible when phone entered but no active sub found */}

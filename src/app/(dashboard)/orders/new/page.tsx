@@ -20,8 +20,11 @@ import StartSubscriptionDialog from "@/components/shared/StartSubscriptionDialog
 interface FormErrors {
   name?: string
   phone?: string
+  email?: string
   items?: string
 }
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 // No real customer-subscription lookup endpoint exists yet — flip this once the
 // backend confirms one, to re-enable phone-based detection and "Bill to Subscription".
@@ -166,6 +169,8 @@ export default function CreateOrderPage() {
     const newErrors: FormErrors = {}
     if (!customerName.trim()) newErrors.name = "Customer name is required"
     if (!customerPhone.trim()) newErrors.phone = "WhatsApp number is required"
+    if (!customerEmail.trim()) newErrors.email = "Email is required"
+    else if (!EMAIL_PATTERN.test(customerEmail.trim())) newErrors.email = "Enter a valid email"
     if (addedItems.length === 0) newErrors.items = "Add at least one item"
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
@@ -180,9 +185,9 @@ export default function CreateOrderPage() {
       items: addedItems.map((i) => ({ price_list_item_id: i.priceListItemId, quantity: i.quantity })),
       channel,
       customer_name: customerName.trim(),
+      customer_email: customerEmail.trim(),
       customer_whatsapp: normalizeNigerianPhone(customerPhone),
       to_be_delivered: false,
-      ...(customerEmail.trim() && { customer_email: customerEmail.trim() }),
     }
 
     try {
@@ -267,9 +272,13 @@ export default function CreateOrderPage() {
             setCustomerPhone(v)
             if (errors.phone) setErrors((e) => ({ ...e, phone: undefined }))
           }}
-          onEmailChange={setCustomerEmail}
+          onEmailChange={(v) => {
+            setCustomerEmail(v)
+            if (errors.email) setErrors((e) => ({ ...e, email: undefined }))
+          }}
           nameError={errors.name}
           phoneError={errors.phone}
+          emailError={errors.email}
           detectedSub={detectedSub}
           remainingCredits={remainingCredits}
           showSubTrigger={showSubTrigger}
