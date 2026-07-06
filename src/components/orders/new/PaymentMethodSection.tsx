@@ -1,13 +1,12 @@
-import { Landmark, Link as LinkIcon, RefreshCw } from "lucide-react"
+import { Link as LinkIcon, MessageCircle, RefreshCw } from "lucide-react"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { cn } from "@/lib/utils"
+import type { OrderChannel } from "@/redux/api/ordersApi"
 import type { CustomerSubscription } from "@/types"
 
-export type PaymentMethod = "counter" | "link" | "subscription"
-
 interface PaymentMethodSectionProps {
-  value: PaymentMethod
-  onChange: (v: PaymentMethod) => void
+  value: OrderChannel
+  onChange: (v: OrderChannel) => void
   detectedSub: CustomerSubscription | null
   subDisabled: boolean
 }
@@ -24,45 +23,45 @@ export default function PaymentMethodSection({
 
       <RadioGroup
         value={value}
-        onValueChange={(v) => onChange(v as PaymentMethod)}
+        onValueChange={(v) => onChange(v as OrderChannel)}
         className="flex flex-col gap-3"
       >
-        {/* Pay now at counter */}
+        {/* Walk-in customer — message them the payment link on WhatsApp */}
         <label
-          htmlFor="method-counter"
+          htmlFor="method-walk-in"
           className={cn(
             "flex cursor-pointer items-center gap-4 rounded-lg border p-4 transition-colors",
-            value === "counter" ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
+            value === "walk_in" ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
           )}
         >
-          <RadioGroupItem value="counter" id="method-counter" />
+          <RadioGroupItem value="walk_in" id="method-walk-in" />
           <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
-            <Landmark className="size-4 text-muted-foreground" />
+            <MessageCircle className="size-4 text-muted-foreground" />
           </div>
           <div>
-            <p className="text-sm font-medium text-foreground">Pay now at counter</p>
+            <p className="text-sm font-medium text-foreground">Walk-in Customer</p>
             <p className="text-xs text-muted-foreground">
-              Customer pays via bank transfer to your virtual account
+              Customer is at your shop — you&apos;ll message them the payment link on WhatsApp
             </p>
           </div>
         </label>
 
-        {/* Send payment link */}
+        {/* Online booking — customer isn't at the shop, route them the payment link */}
         <label
-          htmlFor="method-link"
+          htmlFor="method-online-booking"
           className={cn(
             "flex cursor-pointer items-center gap-4 rounded-lg border p-4 transition-colors",
-            value === "link" ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
+            value === "online_booking" ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"
           )}
         >
-          <RadioGroupItem value="link" id="method-link" />
+          <RadioGroupItem value="online_booking" id="method-online-booking" />
           <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
             <LinkIcon className="size-4 text-muted-foreground" />
           </div>
           <div>
-            <p className="text-sm font-medium text-foreground">Send payment link</p>
+            <p className="text-sm font-medium text-foreground">Online Booking</p>
             <p className="text-xs text-muted-foreground">
-              Generate a payment link to send via WhatsApp
+              Customer isn&apos;t at your shop — send them the payment link
             </p>
           </div>
         </label>
@@ -74,11 +73,11 @@ export default function PaymentMethodSection({
             className={cn(
               "flex items-center gap-4 rounded-lg border p-4 transition-colors",
               subDisabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
-              value === "subscription" && !subDisabled ? "border-primary bg-primary/5" : "border-border",
+              value === "subscription_fulfillment" && !subDisabled ? "border-primary bg-primary/5" : "border-border",
               !subDisabled && "hover:bg-muted/50"
             )}
           >
-            <RadioGroupItem value="subscription" id="method-subscription" disabled={subDisabled} />
+            <RadioGroupItem value="subscription_fulfillment" id="method-subscription" disabled={subDisabled} />
             <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
               <RefreshCw className="size-4 text-muted-foreground" />
             </div>

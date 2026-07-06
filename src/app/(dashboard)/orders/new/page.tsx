@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button"
 import type { CustomerSubscription } from "@/types"
 import CustomerSection from "@/components/orders/new/CustomerSection"
 import ItemPickerSection, { type AddedItem } from "@/components/orders/new/ItemPickerSection"
-import PaymentMethodSection, { type PaymentMethod } from "@/components/orders/new/PaymentMethodSection"
+import PaymentMethodSection from "@/components/orders/new/PaymentMethodSection"
 import StartSubscriptionDialog from "@/components/shared/StartSubscriptionDialog"
 
 interface FormErrors {
@@ -150,7 +150,7 @@ export default function CreateOrderPage() {
   const remainingCredits = detectedSub ? detectedSub.creditsTotal - detectedSub.creditsUsed : 0
   const subDisabled = detectedSub !== null && remainingCredits <= 0
 
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("counter")
+  const [paymentMethod, setPaymentMethod] = useState<OrderChannel>("walk_in")
 
   // Default to the detected subscription (unless disabled) each time detection changes,
   // adjusted during render rather than in an effect (see react-hooks/set-state-in-effect).
@@ -158,7 +158,7 @@ export default function CreateOrderPage() {
   const detectedSubId = detectedSub?.id ?? null
   if (detectedSubId !== lastDetectedSubId) {
     setLastDetectedSubId(detectedSubId)
-    setPaymentMethod(detectedSub && !subDisabled ? "subscription" : "counter")
+    setPaymentMethod(detectedSub && !subDisabled ? "subscription_fulfillment" : "walk_in")
   }
 
   // ── Errors ──
@@ -178,12 +178,10 @@ export default function CreateOrderPage() {
     }
     if (!business) return
 
-    const channel: OrderChannel = paymentMethod === "subscription" ? "subscription_fulfillment" : "walk_in"
-
     const body: CreateOrderRequest = {
       business_id: business.id,
       items: addedItems.map((i) => ({ price_list_item_id: i.priceListItemId, quantity: i.quantity })),
-      channel,
+      channel: paymentMethod,
       customer_name: customerName.trim(),
       customer_email: customerEmail.trim(),
       customer_whatsapp: normalizeNigerianPhone(customerPhone),
@@ -192,18 +190,21 @@ export default function CreateOrderPage() {
 
     try {
       const { order, checkout_link } = await createOrder(body).unwrap()
-      if (checkout_link) {
-        try {
-          await navigator.clipboard.writeText(checkout_link)
-          toast.success("Order created — payment link copied to clipboard", {
-            description: order.reference_id,
-          })
-        } catch {
-          toast.success("Order created successfully", { description: order.reference_id })
-        }
+
+      if (paymentMethod === "walk_in" && checkout_link) {
+        const digits = normalizeNigerianPhone(customerPhone).replace(/\D/g, "")
+        const message = `Hi ${customerName.trim()}, here's your payment link for order ${order.reference_id}: ${checkout_link}`
+        window.open(`https://wa.me/${digits}?text=${encodeURIComponent(message)}`, "_blank")
+        toast.success("Order created — opening WhatsApp to send the payment link", {
+          description: order.reference_id,
+        })
+      } else if (paymentMethod === "online_booking" && checkout_link) {
+        window.open(checkout_link, "_blank")
+        toast.success("Order created — payment link opened", { description: order.reference_id })
       } else {
         toast.success("Order created successfully", { description: order.reference_id })
       }
+
       router.push("/orders")
     } catch (error) {
       toast.error(apiError(error, "Couldn't create order"))
@@ -232,11 +233,11 @@ export default function CreateOrderPage() {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   const submitLabel =
-    paymentMethod === "link"
+    paymentMethod === "online_booking"
       ? "Create Order & Send Payment Link"
-      : paymentMethod === "subscription"
+      : paymentMethod === "subscription_fulfillment"
       ? "Create Order & Deduct from Subscription"
-      : "Create Order"
+      : "Create Order & Message WhatsApp"
 
   return (
     <div className="mx-auto max-w-2xl">
