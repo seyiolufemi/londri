@@ -61,10 +61,6 @@ function verifiedNameMatches(name: string): boolean {
   return MATCH_TOKENS.some((token) => lower.includes(token))
 }
 
-function formatNaira(amount: number): string {
-  return "₦" + amount.toLocaleString("en-NG")
-}
-
 const FALLBACK_DAY: OperatingDay = { open: false, openTime: "08:00", closeTime: "18:00" }
 
 // ─── Verification Tab ─────────────────────────────────────────────────────────
@@ -152,7 +148,6 @@ export default function SettingsPage() {
   const router = useRouter()
   const { kybStatus } = useKybStatus()
 
-  const priceListItems = useStore((s) => s.priceListItems)
   const businessProfile = useStore((s) => s.businessProfile)
   const setBusinessProfile = useStore((s) => s.setBusinessProfile)
   const storedBankName = useStore((s) => s.businessBankName)
@@ -165,9 +160,6 @@ export default function SettingsPage() {
   const [profileDescription, setProfileDescription] = useState(businessProfile.description)
   const [profileAddress, setProfileAddress] = useState(businessProfile.address)
   const [profileRadius, setProfileRadius] = useState(String(businessProfile.serviceAreaRadius))
-  const [profileFeaturedService, setProfileFeaturedService] = useState(
-    businessProfile.featuredServiceId ?? "none"
-  )
   const [profileIllustration, setProfileIllustration] = useState(businessProfile.illustrationIndex)
   const [operatingHours, setOperatingHours] = useState<Record<string, OperatingDay>>(
     businessProfile.operatingHours
@@ -179,7 +171,6 @@ export default function SettingsPage() {
       description: profileDescription,
       address: profileAddress,
       serviceAreaRadius: Number(profileRadius) || 5,
-      featuredServiceId: profileFeaturedService === "none" ? null : profileFeaturedService,
       illustrationIndex: profileIllustration,
       operatingHours,
     }
@@ -411,28 +402,6 @@ export default function SettingsPage() {
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
                 How far you&apos;re willing to travel for pickup and delivery.
-              </p>
-            </div>
-
-            <div>
-              <Label className="mb-1.5 block text-sm">Featured Service</Label>
-              <Select value={profileFeaturedService} onValueChange={setProfileFeaturedService}>
-                <SelectTrigger className="w-full max-w-xs">
-                  <SelectValue placeholder="None" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {priceListItems
-                    .filter((item) => item.isActive)
-                    .map((item) => (
-                      <SelectItem key={item.id} value={item.id}>
-                        {item.name} &mdash; {formatNaira(item.price)}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Highlight one service on your public profile to stand out.
               </p>
             </div>
 

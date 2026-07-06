@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server"
 
-const PUBLIC_PATHS = ["/signup", "/login", "/kyb", "/kyb-status", "/api"]
+// Prefix matches — any path starting with these is public.
+const PUBLIC_PREFIXES = ["/signup", "/login", "/kyb", "/kyb-status", "/api", "/business", "/discover"]
+// Exact matches — must equal the pathname (can't use startsWith("/") — matches everything).
+const PUBLIC_EXACT = ["/"]
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+  if (
+    PUBLIC_EXACT.includes(pathname) ||
+    PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))
+  ) {
     return NextResponse.next()
   }
 
