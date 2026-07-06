@@ -164,14 +164,6 @@ export default function SettingsPage() {
 
   // ── Tab 1: Business Profile ───────────────────────────────────────────────
   const [profileName, setProfileName] = useState(businessProfile.businessName)
-
-  // Seed the business name from the real business once it loads, rather than in
-  // an effect — avoids an extra render pass (see react-hooks/set-state-in-effect).
-  const [hasPrefilledName, setHasPrefilledName] = useState(false)
-  if (business && !hasPrefilledName) {
-    setHasPrefilledName(true)
-    setProfileName(business.name)
-  }
   const [profileDescription, setProfileDescription] = useState(businessProfile.description)
   const [profileAddress, setProfileAddress] = useState(businessProfile.address)
   const [profileRadius, setProfileRadius] = useState(String(businessProfile.serviceAreaRadius))
@@ -182,6 +174,15 @@ export default function SettingsPage() {
   const [operatingHours, setOperatingHours] = useState<Record<string, OperatingDay>>(
     businessProfile.operatingHours
   )
+
+  // Seed name/address from the real business once it loads, rather than in an
+  // effect — avoids an extra render pass (see react-hooks/set-state-in-effect).
+  const [hasPrefilledBusiness, setHasPrefilledBusiness] = useState(false)
+  if (business && !hasPrefilledBusiness) {
+    setHasPrefilledBusiness(true)
+    setProfileName(business.name)
+    setProfileAddress(business.address)
+  }
 
   function handleSaveProfile() {
     const updates: Partial<BusinessProfileSettings> = {
