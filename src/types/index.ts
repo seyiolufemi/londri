@@ -23,6 +23,18 @@ export interface Business {
   createdAt: string
 }
 
+// Customer-facing view of a laundry business, shown on the public discovery pages.
+export interface DiscoveryBusiness {
+  id: string
+  name: string
+  illustrationVariant: string // washing machine SVG filename, e.g. "variant-02-coral.svg"
+  distanceKm: number
+  hours: { open: string; close: string }
+  isOpen: boolean
+  serviceTypes: ServiceType[] // derived from the business's price list items
+  cheapestPrice: number // derived from the business's price list items
+}
+
 export interface KybSubmission {
   id: string
   businessId: string

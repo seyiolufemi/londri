@@ -9,6 +9,8 @@ import type {
   CustomerSubscription,
   Payout,
   Notification,
+  DiscoveryBusiness,
+  ServiceType,
 } from "@/types"
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -235,6 +237,101 @@ export const priceListItems: PriceListItem[] = [
     isActive: true,
   },
 ]
+
+// ─── Customer discovery businesses ────────────────────────────────────────────
+// Each references a subset of the price list items above; serviceTypes and
+// cheapestPrice are derived from those items so the cards stay in sync with pricing.
+
+interface DiscoverySpec {
+  id: string
+  name: string
+  illustrationVariant: string
+  distanceKm: number
+  hours: { open: string; close: string }
+  isOpen: boolean
+  itemIds: string[]
+}
+
+const SERVICE_TYPE_ORDER: ServiceType[] = ["wash", "dry_clean", "iron"]
+
+function buildDiscoveryBusiness(spec: DiscoverySpec): DiscoveryBusiness {
+  const items = spec.itemIds
+    .map((id) => priceListItems.find((p) => p.id === id))
+    .filter((p): p is PriceListItem => Boolean(p))
+
+  const serviceSet = new Set<ServiceType>()
+  items.forEach((it) => it.serviceTypes.forEach((s) => serviceSet.add(s)))
+  const serviceTypes = SERVICE_TYPE_ORDER.filter((s) => serviceSet.has(s))
+  const cheapestPrice = items.length ? Math.min(...items.map((i) => i.price)) : 0
+
+  return {
+    id: spec.id,
+    name: spec.name,
+    illustrationVariant: spec.illustrationVariant,
+    distanceKm: spec.distanceKm,
+    hours: spec.hours,
+    isOpen: spec.isOpen,
+    serviceTypes,
+    cheapestPrice,
+  }
+}
+
+export const discoveryBusinesses: DiscoveryBusiness[] = [
+  {
+    id: "disc_001",
+    name: "Sparkle Wash & Dry",
+    illustrationVariant: "variant-01-white.svg",
+    distanceKm: 0.8,
+    hours: { open: "08:00", close: "20:00" },
+    isOpen: true,
+    itemIds: ["item_001", "item_002", "item_004"],
+  },
+  {
+    id: "disc_002",
+    name: "CleanSheen Laundry",
+    illustrationVariant: "variant-02-coral.svg",
+    distanceKm: 1.2,
+    hours: { open: "07:30", close: "21:00" },
+    isOpen: true,
+    itemIds: ["item_007", "item_008", "item_009"],
+  },
+  {
+    id: "disc_003",
+    name: "FreshPress Lagos",
+    illustrationVariant: "variant-08-skyblue.svg",
+    distanceKm: 2.5,
+    hours: { open: "09:00", close: "18:00" },
+    isOpen: false,
+    itemIds: ["item_005", "item_006"],
+  },
+  {
+    id: "disc_004",
+    name: "Bubbles & Co.",
+    illustrationVariant: "variant-04-sage.svg",
+    distanceKm: 1.7,
+    hours: { open: "08:00", close: "19:00" },
+    isOpen: true,
+    itemIds: ["item_001", "item_003"],
+  },
+  {
+    id: "disc_005",
+    name: "Crisp Laundromat",
+    illustrationVariant: "variant-06-rose.svg",
+    distanceKm: 3.1,
+    hours: { open: "10:00", close: "17:00" },
+    isOpen: false,
+    itemIds: ["item_011", "item_012"],
+  },
+  {
+    id: "disc_006",
+    name: "Marina Wash House",
+    illustrationVariant: "variant-09-plum.svg",
+    distanceKm: 4.3,
+    hours: { open: "08:30", close: "20:30" },
+    isOpen: true,
+    itemIds: ["item_004", "item_005", "item_006"],
+  },
+].map(buildDiscoveryBusiness)
 
 export const subscriptionPlans: SubscriptionPlan[] = [
   {

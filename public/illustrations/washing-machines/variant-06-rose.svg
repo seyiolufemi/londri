@@ -1,0 +1,103 @@
+<svg width="555" height="630" viewBox="0 0 555 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bodyGrad" x1="150" y1="250" x2="406" y2="250" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d29b9b"/>
+      <stop offset="0.55" stop-color="#c98b8b"/>
+      <stop offset="1" stop-color="#b47575"/>
+    </linearGradient>
+    <linearGradient id="rimGrad" x1="205" y1="345" x2="350" y2="505" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f3f6f8"/>
+      <stop offset="1" stop-color="#d2dbe1"/>
+    </linearGradient>
+    <linearGradient id="sageBottleGrad" x1="206" y1="176" x2="250" y2="176" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#96ad9a"/>
+      <stop offset="0.6" stop-color="#87a08c"/>
+      <stop offset="1" stop-color="#728a78"/>
+    </linearGradient>
+    <linearGradient id="creamPouchGrad" x1="266" y1="168" x2="350" y2="168" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f2ede0"/>
+      <stop offset="0.7" stop-color="#eae3d2"/>
+      <stop offset="1" stop-color="#ddd3bd"/>
+    </linearGradient>
+    <clipPath id="drumClip">
+      <circle cx="278" cy="423" r="63"/>
+    </clipPath>
+  </defs>
+
+  <!-- Floor shadow -->
+  <ellipse cx="278" cy="572" rx="150" ry="15" fill="#000000" opacity="0.1"/>
+
+  <!-- ── Supplies: sage bottle + cream box ───────────────────────── -->
+  <!-- Bottle (left) -->
+  <rect x="217" y="148" width="22" height="17" rx="4" fill="#e8e0d0"/>
+  <rect x="217" y="148" width="22" height="6" rx="3" fill="#f2ecdf"/>
+  <rect x="221" y="163" width="14" height="14" fill="#87a08c"/>
+  <rect x="206" y="175" width="44" height="73" rx="10" fill="url(#sageBottleGrad)"/>
+  <rect x="211" y="185" width="34" height="21" rx="6" fill="#efe8da"/>
+  <rect x="211" y="185" width="34" height="8" rx="4" fill="#f5f0e6"/>
+  <!-- Cream box / pouch (right) -->
+  <rect x="266" y="167" width="84" height="81" rx="6" fill="url(#creamPouchGrad)"/>
+  <path d="M270 169 L279 151 L337 151 L346 169 Z" fill="#b9a679"/>
+  <path d="M270 169 L346 169 L346 173 L270 173 Z" fill="#a08c5e"/>
+  <rect x="276" y="189" width="64" height="23" rx="4" fill="#8aa78f"/>
+  <path d="M280 205 Q300 194 336 200" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <rect x="276" y="220" width="64" height="7" rx="3.5" fill="#c9b98f"/>
+
+  <!-- ── Machine body ────────────────────────────────────────────── -->
+  <rect x="150" y="250" width="256" height="306" rx="18" fill="url(#bodyGrad)"/>
+  <rect x="390" y="250" width="16" height="306" rx="8" fill="#b47575" opacity="0.4"/>
+  <rect x="176" y="552" width="22" height="17" rx="3" fill="#c3ced5"/>
+  <rect x="358" y="552" width="22" height="17" rx="3" fill="#c3ced5"/>
+
+  <!-- ── Control panel ───────────────────────────────────────────── -->
+  <rect x="173" y="286" width="54" height="21" rx="6" fill="#f4f7f8"/>
+  <path d="M181 291 Q200 305 219 291" stroke="#c3ced5" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <circle cx="293" cy="297" r="11" fill="none" stroke="#b9c5cc" stroke-width="2.5"/>
+  <circle cx="293" cy="297" r="3" fill="#b9c5cc"/>
+  <circle cx="256" cy="290" r="2.6" fill="#b9c5cc"/>
+  <circle cx="266" cy="290" r="2.6" fill="#b9c5cc"/>
+  <circle cx="256" cy="299" r="2.6" fill="#b9c5cc"/>
+  <circle cx="266" cy="299" r="2.6" fill="#b9c5cc"/>
+  <circle cx="256" cy="308" r="2.6" fill="#b9c5cc"/>
+  <circle cx="266" cy="308" r="2.6" fill="#b9c5cc"/>
+  <rect x="330" y="284" width="54" height="30" rx="5" fill="#2c3b54"/>
+  <path d="M338 312 L352 286 L360 286 L346 312 Z" fill="#4a5d78" opacity="0.8"/>
+  <path d="M360 312 L370 286 L375 286 L365 312 Z" fill="#4a5d78" opacity="0.55"/>
+  <line x1="167" y1="324" x2="389" y2="324" stroke="#d0dae0" stroke-width="2"/>
+
+  <!-- ── Door ────────────────────────────────────────────────────── -->
+  <circle cx="278" cy="423" r="85" fill="url(#rimGrad)"/>
+  <circle cx="278" cy="423" r="69" fill="#cdd7dd"/>
+  <circle cx="278" cy="423" r="63" fill="#2c3b54"/>
+
+  <!-- water + bubbles: calm wave, soft pastel blue -->
+  <g clip-path="url(#drumClip)">
+    <path d="M207.8 419 C232 411 254 429 279.8 421 C306 413 330 417 357.2 417 L357.2 489.6 L207.8 489.6 Z" fill="#7fb0dd"/>
+    <path d="M207.8 419 C232 411 254 429 279.8 421 C306 413 330 417 357.2 417" stroke="#9cc5e8" stroke-width="4.5" fill="none"/>
+    <circle cx="230.3" cy="439.2" r="7.2" fill="#b8d7f0"/>
+    <circle cx="263.6" cy="441" r="8.1" fill="#9cc5e8"/>
+    <circle cx="296" cy="444.6" r="6.3" fill="#b8d7f0"/>
+    <circle cx="324.8" cy="439.2" r="4.5" fill="#9cc5e8"/>
+    <circle cx="248.3" cy="451.8" r="5.4" fill="#b8d7f0"/>
+    <circle cx="279.8" cy="455.4" r="5.4" fill="#9cc5e8"/>
+    <circle cx="311.3" cy="453.6" r="5.4" fill="#b8d7f0"/>
+    <circle cx="242" cy="464.4" r="3.6" fill="#9cc5e8"/>
+    <circle cx="272.6" cy="468" r="4.5" fill="#b8d7f0"/>
+    <circle cx="303.2" cy="466.2" r="3.6" fill="#9cc5e8"/>
+    <circle cx="260" cy="457.2" r="2.7" fill="#d6e9f8"/>
+    <circle cx="290.6" cy="460.8" r="3.15" fill="#d6e9f8"/>
+    <circle cx="317.6" cy="462.6" r="3.15" fill="#b8d7f0"/>
+    <circle cx="222.2" cy="451.8" r="3.6" fill="#9cc5e8"/>
+    <circle cx="330.2" cy="451.8" r="3.6" fill="#b8d7f0"/>
+    <circle cx="252.8" cy="444.6" r="2.7" fill="#d6e9f8"/>
+    <circle cx="285.2" cy="446.4" r="3.15" fill="#d6e9f8"/>
+    <circle cx="308.6" cy="442.8" r="2.7" fill="#d6e9f8"/>
+    <path d="M232.4 392.4 A55.8 55.8 0 0 1 295 367.2" stroke="#ffffff" stroke-width="8.1" fill="none" stroke-linecap="round" opacity="0.14"/>
+    <path d="M234.8 408.6 A59.4 59.4 0 0 1 263.6 381.6" stroke="#ffffff" stroke-width="4.5" fill="none" stroke-linecap="round" opacity="0.12"/>
+  </g>
+
+  <!-- ── Lower detail ────────────────────────────────────────────── -->
+  <line x1="204" y1="512" x2="352" y2="512" stroke="#d0dae0" stroke-width="2"/>
+  <circle cx="322" cy="528" r="14" fill="none" stroke="#c3ced5" stroke-width="2.5"/>
+  <circle cx="322" cy="528" r="3" fill="#c3ced5"/>
+</svg>
