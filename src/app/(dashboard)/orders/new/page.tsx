@@ -23,6 +23,10 @@ interface FormErrors {
   items?: string
 }
 
+// No real customer-subscription lookup endpoint exists yet — flip this once the
+// backend confirms one, to re-enable phone-based detection and "Bill to Subscription".
+const SUBSCRIPTION_DETECTION_ENABLED = false
+
 // Matches the mock customer-subscription store's phone format — the phone
 // lookup itself is still mock (no real customer-subscription endpoint yet).
 function normalizePhone(raw: string): string {
@@ -69,6 +73,7 @@ export default function CreateOrderPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
+    if (!SUBSCRIPTION_DETECTION_ENABLED) return
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
       const normalized = normalizePhone(customerPhone)
@@ -90,7 +95,7 @@ export default function CreateOrderPage() {
   const [subDialogOpen, setSubDialogOpen] = useState(false)
 
   const phoneDigits = normalizePhone(customerPhone)
-  const showSubTrigger = phoneDigits.length >= 10 && detectedSub === null
+  const showSubTrigger = SUBSCRIPTION_DETECTION_ENABLED && phoneDigits.length >= 10 && detectedSub === null
 
   // ── Items ──
   const [addedItems, setAddedItems] = useState<AddedItem[]>([])
