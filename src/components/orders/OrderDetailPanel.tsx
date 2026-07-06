@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react"
 import { toast } from "sonner"
-import { MessageCircle, XCircle } from "lucide-react"
+import { Loader2, MessageCircle, XCircle } from "lucide-react"
 import { useGetOrderQuery, useUpdateOrderStatusMutation, type OrderStatus } from "@/redux/api/ordersApi"
 import { apiError } from "@/lib/apiError"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +32,72 @@ interface OrderDetailPanelProps {
   orderId: string
 }
 
+function OrderDetailSkeleton() {
+  return (
+    <div className="p-6">
+      {/* Header */}
+      <div className="mb-6">
+        <Skeleton className="h-6 w-40" />
+        <div className="mt-1.5 flex items-center gap-2">
+          <Skeleton className="h-5 w-16 rounded-full" />
+          <Skeleton className="h-4 w-28" />
+        </div>
+      </div>
+
+      {/* Customer */}
+      <div className="mb-6 rounded-lg bg-muted/30 p-4">
+        <Skeleton className="mb-3 h-4 w-20" />
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-3 w-10" />
+            <Skeleton className="h-4 w-28" />
+          </div>
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-4 w-24" />
+          </div>
+        </div>
+      </div>
+
+      {/* Items & Pricing */}
+      <div className="mb-6">
+        <Skeleton className="mb-3 h-4 w-32" />
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-full" />
+        </div>
+        <div className="my-3 border-t border-border" />
+        <div className="flex justify-between">
+          <Skeleton className="h-4 w-12" />
+          <Skeleton className="h-5 w-20" />
+        </div>
+      </div>
+
+      {/* Payment */}
+      <div className="mb-6">
+        <Skeleton className="mb-3 h-4 w-16" />
+        <Skeleton className="h-5 w-14 rounded-full" />
+      </div>
+
+      {/* Timeline */}
+      <div className="mb-6">
+        <Skeleton className="mb-4 h-4 w-20" />
+        <div className="space-y-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <Skeleton className="size-2.5 shrink-0 rounded-full" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Status action */}
+      <Skeleton className="h-10 w-full rounded-md" />
+    </div>
+  )
+}
+
 export default function OrderDetailPanel({ orderId }: OrderDetailPanelProps) {
   const { data: order, isLoading } = useGetOrderQuery(orderId)
   const [updateOrderStatus, { isLoading: isUpdating }] = useUpdateOrderStatusMutation()
@@ -46,7 +113,7 @@ export default function OrderDetailPanel({ orderId }: OrderDetailPanelProps) {
   }, [order])
 
   if (isLoading || !order) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading order…</div>
+    return <OrderDetailSkeleton />
   }
 
   const next = getNextStatus(order.status, order.to_be_delivered)
@@ -245,6 +312,7 @@ export default function OrderDetailPanel({ orderId }: OrderDetailPanelProps) {
             ) : (
               nextActionLabel && (
                 <Button className="w-full" onClick={handleAdvanceStatus} disabled={isUpdating}>
+                  {isUpdating && <Loader2 className="size-4 animate-spin" />}
                   {nextActionLabel}
                 </Button>
               )
@@ -304,12 +372,13 @@ export default function OrderDetailPanel({ orderId }: OrderDetailPanelProps) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Keep Order</AlertDialogCancel>
+            <AlertDialogCancel disabled={isUpdating}>Keep Order</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={handleCancelOrder}
               disabled={isUpdating}
             >
+              {isUpdating && <Loader2 className="size-4 animate-spin" />}
               Cancel Order
             </AlertDialogAction>
           </AlertDialogFooter>
