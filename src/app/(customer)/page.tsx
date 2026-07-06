@@ -128,7 +128,7 @@ export default function CustomerLandingPage() {
         </h2>
 
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {discoveryBusinesses.map((business, index) => (
+          {discoveryBusinesses.slice(0, 6).map((business, index) => (
             <BusinessCard key={business.id} business={business} index={index} />
           ))}
         </div>
