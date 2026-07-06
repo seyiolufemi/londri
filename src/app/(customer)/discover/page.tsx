@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useMemo, useEffect, useRef, useCallback } from "react"
+import { Suspense, useState, useMemo, useEffect, useRef, useCallback } from "react"
+import { useSearchParams } from "next/navigation"
 import { ChevronDown, Loader2, Search, SearchX, X } from "lucide-react"
 import Navbar from "@/components/customer/Navbar"
 import BusinessCard from "@/components/customer/BusinessCard"
@@ -36,7 +37,16 @@ const SORT_LABELS: Record<SortOption, string> = {
 const PAGE_SIZE = 9
 
 export default function DiscoverPage() {
-  const [search, setSearch] = useState("")
+  return (
+    <Suspense fallback={null}>
+      <DiscoverPageContent />
+    </Suspense>
+  )
+}
+
+function DiscoverPageContent() {
+  const searchParams = useSearchParams()
+  const [search, setSearch] = useState(() => searchParams.get("q") ?? "")
   const [serviceTypeFilters, setServiceTypeFilters] = useState<ServiceType[]>([])
   const [sort, setSort] = useState<SortOption>("nearest")
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
@@ -208,6 +218,15 @@ export default function DiscoverPage() {
             ))}
           </div>
         )}
+
+        {/* Results count/context line */}
+        <p className="mb-4 text-sm text-muted-foreground">
+          {search.trim()
+            ? `Showing ${filtered.length} results for "${search.trim()}"`
+            : serviceTypeFilters.length > 0
+              ? `Showing ${filtered.length} results`
+              : `Showing ${filtered.length} laundries near you`}
+        </p>
 
         {/* Results */}
         {filtered.length === 0 ? (
