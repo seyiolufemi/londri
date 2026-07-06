@@ -4,13 +4,11 @@ import { useState, useEffect, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   ChevronLeft,
-  BadgeCheck,
   Minus,
   Plus,
   X,
   Landmark,
   Link as LinkIcon,
-  RefreshCw,
   Search,
   Lock,
 } from "lucide-react"
@@ -26,16 +24,14 @@ import type {
   Order,
   OrderItem,
   OrderStatusEvent,
-  CustomerSubscription,
   PriceListItem,
   PriceCategory,
   Transaction,
 } from "@/types"
-import StartSubscriptionDialog from "@/components/shared/StartSubscriptionDialog"
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-type PaymentMethod = "counter" | "link" | "subscription"
+type PaymentMethod = "counter" | "link"
 
 const CATEGORY_LABELS: Record<PriceCategory, string> = {
   clothing: "Clothing",
@@ -64,14 +60,6 @@ function formatNaira(amount: number): string {
   return "₦" + amount.toLocaleString("en-NG")
 }
 
-function normalizePhone(raw: string): string {
-  const digits = raw.replace(/\D/g, "")
-  if (digits.startsWith("234") && digits.length >= 13) {
-    return "0" + digits.slice(3)
-  }
-  return digits
-}
-
 function generateReference(ordersLength: number): string {
   const now = new Date()
   const y = now.getFullYear()
@@ -89,8 +77,6 @@ export default function CreateOrderPage() {
 
   const orders = useStore((s) => s.orders)
   const priceListItems = useStore((s) => s.priceListItems)
-  const subscriptionPlans = useStore((s) => s.subscriptionPlans)
-  const customerSubscriptions = useStore((s) => s.customerSubscriptions)
   const addOrder = useStore((s) => s.addOrder)
   const addOrderStatusEvent = useStore((s) => s.addOrderStatusEvent)
   const addTransaction = useStore((s) => s.addTransaction)
@@ -99,34 +85,6 @@ export default function CreateOrderPage() {
   const [customerName, setCustomerName] = useState("")
   const [customerPhone, setCustomerPhone] = useState("")
   const [customerEmail, setCustomerEmail] = useState("")
-
-  // ── Subscription lookup ──
-  const [detectedSub, setDetectedSub] = useState<CustomerSubscription | null>(null)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => {
-      const normalized = normalizePhone(customerPhone)
-      if (normalized.length < 10) {
-        setDetectedSub(null)
-        return
-      }
-      const match = customerSubscriptions.find(
-        (s) => s.status === "active" && normalizePhone(s.customerPhone) === normalized
-      )
-      setDetectedSub(match ?? null)
-    }, 400)
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current)
-    }
-  }, [customerPhone, customerSubscriptions])
-
-  // ── Start Subscription dialog ──
-  const [subDialogOpen, setSubDialogOpen] = useState(false)
-
-  const phoneDigits = normalizePhone(customerPhone)
-  const showSubTrigger = phoneDigits.length >= 10 && detectedSub === null
 
   // ── Items ──
   const [addedItems, setAddedItems] = useState<AddedItem[]>([])
@@ -206,25 +164,7 @@ export default function CreateOrderPage() {
   )
 
   // ── Payment method ──
-  const detectedPlan = detectedSub
-    ? (subscriptionPlans.find((p) => p.id === detectedSub.planId) ?? null)
-    : null
-  const eligibleCategories: PriceCategory[] = detectedPlan?.categories ?? []
-  const remainingCredits = detectedSub
-    ? detectedSub.creditsTotal - detectedSub.creditsUsed
-    : 0
-  const subDisabled = detectedSub !== null && remainingCredits <= 0
-
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("counter")
-
-  // When subscription is detected, default to it (unless disabled)
-  useEffect(() => {
-    if (detectedSub && !subDisabled) {
-      setPaymentMethod("subscription")
-    } else if (!detectedSub) {
-      setPaymentMethod("counter")
-    }
-  }, [detectedSub, subDisabled])
 
   // ── Errors ──
   const [errors, setErrors] = useState<FormErrors>({})
@@ -261,7 +201,7 @@ export default function CreateOrderPage() {
       items,
       totalAmount,
       status: "confirmed",
-      channel: paymentMethod === "subscription" ? "subscription" : "walk_in",
+      channel: "walk_in",
       paymentStatus: paymentMethod === "counter" ? "paid" : "unpaid",
       pickupAddress: "",
       deliveryAddress: "",
@@ -330,11 +270,7 @@ export default function CreateOrderPage() {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   const submitLabel =
-    paymentMethod === "link"
-      ? "Create Order & Send Payment Link"
-      : paymentMethod === "subscription"
-      ? "Create Order & Deduct from Subscription"
-      : "Create Order"
+    paymentMethod === "link" ? "Create Order & Send Payment Link" : "Create Order"
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -353,7 +289,7 @@ export default function CreateOrderPage() {
           Create Order
         </h2>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          Create an order for a walk-in or subscription customer
+          Create an order for a walk-in customer
         </p>
       </div>
 
@@ -400,27 +336,6 @@ export default function CreateOrderPage() {
               {errors.phone && (
                 <p className="mt-1 text-xs text-destructive">{errors.phone}</p>
               )}
-
-              {/* Active subscription card */}
-              {detectedSub && (
-                <div className="mt-2 flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 p-4">
-                  <div className="flex items-start gap-2.5">
-                    <BadgeCheck className="mt-0.5 size-[18px] shrink-0 text-primary" />
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {detectedSub.planName} Plan
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {remainingCredits} of {detectedSub.creditsTotal} items
-                        remaining this cycle
-                      </p>
-                    </div>
-                  </div>
-                  <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                    Active
-                  </span>
-                </div>
-              )}
             </div>
 
             {/* Email (optional) */}
@@ -436,17 +351,6 @@ export default function CreateOrderPage() {
                 onChange={(e) => setCustomerEmail(e.target.value)}
               />
             </div>
-
-            {/* Start subscription trigger — visible when phone entered but no active sub found */}
-            {showSubTrigger && (
-              <button
-                type="button"
-                onClick={() => setSubDialogOpen(true)}
-                className="mt-1 self-start text-sm text-primary hover:underline"
-              >
-                Not a subscriber? Start a subscription for this customer &rarr;
-              </button>
-            )}
           </div>
         </section>
 
@@ -518,66 +422,55 @@ export default function CreateOrderPage() {
           {/* Added items list */}
           {addedItems.length > 0 && (
             <div className="mb-3">
-              {addedItems.map((item) => {
-                const notCovered =
-                  detectedSub !== null &&
-                  eligibleCategories.length > 0 &&
-                  !eligibleCategories.includes(item.category)
-                return (
-                  <div
-                    key={item.priceListItemId}
-                    className="flex items-center justify-between border-b border-border py-2 last:border-0"
-                  >
-                    {/* Left: name + category */}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground">
-                        {item.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {CATEGORY_LABELS[item.category]}
-                      </p>
-                      {notCovered && (
-                        <p className="text-xs text-amber-600">
-                          Not covered by subscription
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Middle: quantity stepper */}
-                    <div className="mx-4 flex w-24 items-center justify-between rounded-md border border-border">
-                      <button
-                        type="button"
-                        onClick={() => updateQuantity(item.priceListItemId, -1)}
-                        className="flex size-7 items-center justify-center text-muted-foreground hover:text-foreground"
-                      >
-                        <Minus className="size-3" />
-                      </button>
-                      <span className="text-sm tabular-nums">{item.quantity}</span>
-                      <button
-                        type="button"
-                        onClick={() => updateQuantity(item.priceListItemId, 1)}
-                        className="flex size-7 items-center justify-center text-muted-foreground hover:text-foreground"
-                      >
-                        <Plus className="size-3" />
-                      </button>
-                    </div>
-
-                    {/* Right: line total + remove */}
-                    <div className="flex items-center gap-2">
-                      <span className="w-24 text-right text-sm font-medium tabular-nums text-foreground">
-                        {formatNaira(item.unitPrice * item.quantity)}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => removeItem(item.priceListItemId)}
-                        className="text-muted-foreground hover:text-foreground"
-                      >
-                        <X className="size-4" />
-                      </button>
-                    </div>
+              {addedItems.map((item) => (
+                <div
+                  key={item.priceListItemId}
+                  className="flex items-center justify-between border-b border-border py-2 last:border-0"
+                >
+                  {/* Left: name + category */}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground">
+                      {item.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {CATEGORY_LABELS[item.category]}
+                    </p>
                   </div>
-                )
-              })}
+
+                  {/* Middle: quantity stepper */}
+                  <div className="mx-4 flex w-24 items-center justify-between rounded-md border border-border">
+                    <button
+                      type="button"
+                      onClick={() => updateQuantity(item.priceListItemId, -1)}
+                      className="flex size-7 items-center justify-center text-muted-foreground hover:text-foreground"
+                    >
+                      <Minus className="size-3" />
+                    </button>
+                    <span className="text-sm tabular-nums">{item.quantity}</span>
+                    <button
+                      type="button"
+                      onClick={() => updateQuantity(item.priceListItemId, 1)}
+                      className="flex size-7 items-center justify-center text-muted-foreground hover:text-foreground"
+                    >
+                      <Plus className="size-3" />
+                    </button>
+                  </div>
+
+                  {/* Right: line total + remove */}
+                  <div className="flex items-center gap-2">
+                    <span className="w-24 text-right text-sm font-medium tabular-nums text-foreground">
+                      {formatNaira(item.unitPrice * item.quantity)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeItem(item.priceListItemId)}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="size-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
@@ -650,46 +543,6 @@ export default function CreateOrderPage() {
                 </p>
               </div>
             </label>
-
-            {/* Bill to subscription — only when detected */}
-            {detectedSub && (
-              <label
-                htmlFor="method-subscription"
-                className={cn(
-                  "flex items-center gap-4 rounded-lg border p-4 transition-colors",
-                  subDisabled
-                    ? "cursor-not-allowed opacity-50"
-                    : "cursor-pointer",
-                  paymentMethod === "subscription" && !subDisabled
-                    ? "border-primary bg-primary/5"
-                    : "border-border",
-                  !subDisabled && "hover:bg-muted/50"
-                )}
-              >
-                <RadioGroupItem
-                  value="subscription"
-                  id="method-subscription"
-                  disabled={subDisabled}
-                />
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
-                  <RefreshCw className="size-4 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    Bill to subscription
-                  </p>
-                  {subDisabled ? (
-                    <p className="text-xs text-destructive">
-                      Not enough credits remaining
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      Deduct from customer&apos;s active plan
-                    </p>
-                  )}
-                </div>
-              </label>
-            )}
           </RadioGroup>
         </section>
 
@@ -698,14 +551,6 @@ export default function CreateOrderPage() {
           {submitLabel}
         </Button>
       </div>
-
-      {/* ── Start Subscription Dialog ── */}
-      <StartSubscriptionDialog
-        open={subDialogOpen}
-        onOpenChange={setSubDialogOpen}
-        prefilledCustomer={{ name: customerName, phone: customerPhone }}
-        onSubscriptionCreated={setDetectedSub}
-      />
     </div>
   )
 }

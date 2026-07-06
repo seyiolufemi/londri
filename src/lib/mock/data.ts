@@ -11,6 +11,8 @@ import type {
   Notification,
   DiscoveryBusiness,
   ServiceType,
+  OperatingDay,
+  CustomerOrder,
 } from "@/types"
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -250,9 +252,25 @@ interface DiscoverySpec {
   hours: { open: string; close: string }
   isOpen: boolean
   itemIds: string[]
+  address: string
+  closedDays?: string[] // defaults to ["Sun"]
+  whatsappNumber: string
 }
 
 const SERVICE_TYPE_ORDER: ServiceType[] = ["wash", "dry_clean", "iron"]
+const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+function buildWeeklyHours(
+  open: string,
+  close: string,
+  closedDays: string[] = ["Sun"]
+): Record<string, OperatingDay> {
+  const hours: Record<string, OperatingDay> = {}
+  WEEK_DAYS.forEach((day) => {
+    hours[day] = { open: !closedDays.includes(day), openTime: open, closeTime: close }
+  })
+  return hours
+}
 
 function buildDiscoveryBusiness(spec: DiscoverySpec): DiscoveryBusiness {
   const items = spec.itemIds
@@ -273,6 +291,10 @@ function buildDiscoveryBusiness(spec: DiscoverySpec): DiscoveryBusiness {
     isOpen: spec.isOpen,
     serviceTypes,
     cheapestPrice,
+    address: spec.address,
+    operatingHours: buildWeeklyHours(spec.hours.open, spec.hours.close, spec.closedDays),
+    itemIds: spec.itemIds,
+    whatsappNumber: spec.whatsappNumber,
   }
 }
 
@@ -285,6 +307,8 @@ export const discoveryBusinesses: DiscoveryBusiness[] = [
     hours: { open: "08:00", close: "20:00" },
     isOpen: true,
     itemIds: ["item_001", "item_002", "item_004"],
+    address: "14 Admiralty Way, Lekki Phase 1, Lagos",
+    whatsappNumber: "+234 801 234 5678",
   },
   {
     id: "disc_002",
@@ -294,6 +318,9 @@ export const discoveryBusinesses: DiscoveryBusiness[] = [
     hours: { open: "07:30", close: "21:00" },
     isOpen: true,
     itemIds: ["item_007", "item_008", "item_009"],
+    address: "23 Ahmadu Bello Way, Victoria Island, Lagos",
+    closedDays: [],
+    whatsappNumber: "+234 705 321 9876",
   },
   {
     id: "disc_003",
@@ -303,6 +330,8 @@ export const discoveryBusinesses: DiscoveryBusiness[] = [
     hours: { open: "09:00", close: "18:00" },
     isOpen: false,
     itemIds: ["item_005", "item_006"],
+    address: "7 Bode Thomas Street, Surulere, Lagos",
+    whatsappNumber: "+234 812 093 4512",
   },
   {
     id: "disc_004",
@@ -312,6 +341,8 @@ export const discoveryBusinesses: DiscoveryBusiness[] = [
     hours: { open: "08:00", close: "19:00" },
     isOpen: true,
     itemIds: ["item_001", "item_003"],
+    address: "45 Akin Adesola Street, Victoria Island, Lagos",
+    whatsappNumber: "+234 909 876 5432",
   },
   {
     id: "disc_005",
@@ -321,6 +352,9 @@ export const discoveryBusinesses: DiscoveryBusiness[] = [
     hours: { open: "10:00", close: "17:00" },
     isOpen: false,
     itemIds: ["item_011", "item_012"],
+    address: "12 Ogui Road, Enugu",
+    closedDays: ["Sun", "Mon"],
+    whatsappNumber: "+234 803 456 7890",
   },
   {
     id: "disc_006",
@@ -330,6 +364,8 @@ export const discoveryBusinesses: DiscoveryBusiness[] = [
     hours: { open: "08:30", close: "20:30" },
     isOpen: true,
     itemIds: ["item_004", "item_005", "item_006"],
+    address: "78 Isaac John Street, GRA Ikeja, Lagos",
+    whatsappNumber: "+234 706 654 3210",
   },
 ].map(buildDiscoveryBusiness)
 
@@ -875,5 +911,78 @@ export const notifications: Notification[] = [
     read: true,
     createdAt: daysAgo(20),
     linkTo: "/transactions",
+  },
+]
+
+// ─── Customer order history — mock past orders for the signed-in customer account ──
+
+export const mockCustomerOrders: CustomerOrder[] = [
+  {
+    id: "corder_001",
+    businessId: "disc_001",
+    businessName: "Sparkle Wash & Dry",
+    reference: "LDR-482913",
+    items: [
+      { priceListItemId: "item_001", name: "Plain Shirt", quantity: 3, unitPrice: 800, subtotal: 2400 },
+      { priceListItemId: "item_002", name: "Trousers", quantity: 2, unitPrice: 800, subtotal: 1600 },
+    ],
+    totalAmount: 4000,
+    status: "completed",
+    pickupAddress: "45 Akin Adesola Street, Victoria Island, Lagos",
+    createdAt: d(2, 10, 0),
+  },
+  {
+    id: "corder_002",
+    businessId: "disc_002",
+    businessName: "CleanSheen Laundry",
+    reference: "LDR-719204",
+    items: [
+      { priceListItemId: "item_008", name: "Bed Sheet (King)", quantity: 1, unitPrice: 3500, subtotal: 3500 },
+      { priceListItemId: "item_009", name: "Duvet (Single)", quantity: 1, unitPrice: 5000, subtotal: 5000 },
+    ],
+    totalAmount: 8500,
+    status: "in_progress",
+    pickupAddress: "12 Bourdillon Road, Ikoyi, Lagos",
+    createdAt: d(5, 14, 30),
+  },
+  {
+    id: "corder_003",
+    businessId: "disc_004",
+    businessName: "Bubbles & Co.",
+    reference: "LDR-350871",
+    items: [
+      { priceListItemId: "item_003", name: "Native Senator", quantity: 1, unitPrice: 2000, subtotal: 2000 },
+    ],
+    totalAmount: 2000,
+    status: "ready",
+    pickupAddress: "45 Akin Adesola Street, Victoria Island, Lagos",
+    createdAt: d(10, 9, 15),
+  },
+  {
+    id: "corder_004",
+    businessId: "disc_003",
+    businessName: "FreshPress Lagos",
+    reference: "LDR-926450",
+    items: [
+      { priceListItemId: "item_005", name: "Suit (complete)", quantity: 1, unitPrice: 4500, subtotal: 4500 },
+      { priceListItemId: "item_006", name: "Gown / Dress", quantity: 1, unitPrice: 2500, subtotal: 2500 },
+    ],
+    totalAmount: 7000,
+    status: "requested",
+    pickupAddress: "7 Bode Thomas Street, Surulere, Lagos",
+    createdAt: d(15, 16, 45),
+  },
+  {
+    id: "corder_005",
+    businessId: "disc_006",
+    businessName: "Marina Wash House",
+    reference: "LDR-138762",
+    items: [
+      { priceListItemId: "item_004", name: "Agbada (complete set)", quantity: 1, unitPrice: 6500, subtotal: 6500 },
+    ],
+    totalAmount: 6500,
+    status: "completed",
+    pickupAddress: "78 Isaac John Street, GRA Ikeja, Lagos",
+    createdAt: d(20, 11, 0),
   },
 ]

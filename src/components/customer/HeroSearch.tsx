@@ -64,7 +64,7 @@ export default function HeroSearch() {
   }, [animating])
 
   return (
-    <div className="mx-auto flex h-[55px] w-[517px] items-center rounded-full border border-[color-mix(in_oklch,var(--primary)_82%,white)] bg-[color-mix(in_oklch,var(--primary)_92%,white)] p-[5px]">
+    <div className="mx-auto flex h-[50px] w-full max-w-[517px] items-center rounded-full border border-[color-mix(in_oklch,var(--primary)_82%,white)] bg-[color-mix(in_oklch,var(--primary)_92%,white)] p-[5px] sm:h-[55px]">
       <Input
         value={animating ? animated : query}
         onChange={(e) => setQuery(e.target.value)}
@@ -75,9 +75,9 @@ export default function HeroSearch() {
       <Button
         type="button"
         aria-label="Search"
-        className="flex size-[45px] shrink-0 items-center justify-center rounded-full bg-white p-0 text-primary hover:bg-white/90"
+        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white p-0 text-primary hover:bg-white/90 sm:size-[45px]"
       >
-        <Search className="size-[18px]" />
+        <Search className="size-4 sm:size-[18px]" />
       </Button>
     </div>
   )

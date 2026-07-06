@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 // Prefix matches — any path starting with these is public.
-const PUBLIC_PREFIXES = ["/signup", "/login", "/kyb", "/kyb-status", "/api", "/business", "/discover"]
+const PUBLIC_PREFIXES = ["/signup", "/login", "/kyb", "/kyb-status", "/api", "/business", "/discover", "/laundry", "/checkout", "/account", "/about", "/terms", "/privacy", "/contact"]
 // Exact matches — must equal the pathname (can't use startsWith("/") — matches everything).
 const PUBLIC_EXACT = ["/"]
 
