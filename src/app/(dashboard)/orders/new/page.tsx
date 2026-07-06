@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { ChevronLeft, Lock } from "lucide-react"
+import { ChevronLeft, Loader2, Lock } from "lucide-react"
 import { toast } from "sonner"
 import { useStore } from "@/lib/mock/store"
 import { useGetMyBusinessQuery } from "@/redux/api/businessApi"
@@ -299,6 +299,7 @@ export default function CreateOrderPage() {
 
         {/* ── Section 4: Create ── */}
         <Button className="mt-2 w-full" onClick={handleSubmit} disabled={isCreating}>
+          {isCreating && <Loader2 className="size-4 animate-spin" />}
           {submitLabel}
         </Button>
       </div>

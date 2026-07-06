@@ -1,10 +1,12 @@
 import { NextRequest } from "next/server"
-import { proxyPost } from "@/lib/proxyRoute"
 import { proxyAuthed } from "@/lib/authedProxy"
 
-// Customer-facing checkout — no owner auth required by the backend.
+// Docs call this public/customer-facing, but the real backend rejects it
+// without a bearer token — forward the owner's access token like every
+// other authed route.
 export async function POST(req: NextRequest) {
-  return proxyPost(req, "/orders")
+  const body = await req.json()
+  return proxyAuthed(req, "/orders", { method: "POST", body: JSON.stringify(body) })
 }
 
 export async function GET(req: NextRequest) {

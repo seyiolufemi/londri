@@ -133,7 +133,8 @@ export interface UpdateOrderStatusRequest {
 
 export const ordersApi = apiManager.injectEndpoints({
   endpoints: (builder) => ({
-    // Customer-facing checkout — no owner auth required by the backend.
+    // Docs call this public/customer-facing, but the backend actually requires
+    // the owner's bearer token (see the route handler) — it 401s without it.
     createOrder: builder.mutation<CreateOrderResponse, CreateOrderRequest>({
       query: (body) => ({ url: "/orders", method: "POST", body }),
       invalidatesTags: ["Order"],
