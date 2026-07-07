@@ -372,54 +372,56 @@ export default function OverviewPage() {
             </p>
           </div>
 
-          {locked ? (
-            <div className="flex h-[200px] flex-col items-center justify-center gap-2 rounded-lg bg-muted/30">
-              <Lock className="size-5 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">
-                Complete verification to unlock analytics
-              </p>
+          {/* Chart visualization isn't wired to real data yet — shown blurred as a preview,
+              with its own "Coming Soon" overlay independent of KYB lock state. */}
+          <div className="relative">
+            <div className="pointer-events-none select-none blur-sm">
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart
+                  data={chartData}
+                  barSize={28}
+                  margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    vertical={false}
+                    strokeDasharray="3 3"
+                    stroke="var(--border)"
+                  />
+                  <XAxis
+                    dataKey="label"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                    tickFormatter={(v: number) =>
+                      v >= 1000000
+                        ? `₦${v / 1000000}m`
+                        : v >= 1000
+                        ? `₦${v / 1000}k`
+                        : `₦${v}`
+                    }
+                    width={52}
+                    domain={yDomain}
+                    tickCount={5}
+                  />
+                  <Tooltip
+                    content={<CustomTooltip />}
+                    cursor={{ fill: "var(--muted)" }}
+                  />
+                  <Bar dataKey="amount" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart
-                data={chartData}
-                barSize={28}
-                margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
-              >
-                <CartesianGrid
-                  vertical={false}
-                  strokeDasharray="3 3"
-                  stroke="var(--border)"
-                />
-                <XAxis
-                  dataKey="label"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                  tickFormatter={(v: number) =>
-                    v >= 1000000
-                      ? `₦${v / 1000000}m`
-                      : v >= 1000
-                      ? `₦${v / 1000}k`
-                      : `₦${v}`
-                  }
-                  width={52}
-                  domain={yDomain}
-                  tickCount={5}
-                />
-                <Tooltip
-                  content={<CustomTooltip />}
-                  cursor={{ fill: "var(--muted)" }}
-                />
-                <Bar dataKey="amount" fill="var(--primary)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="rounded-full border border-border bg-background/90 px-3 py-1 text-sm font-medium text-foreground shadow-sm">
+                Coming Soon
+              </span>
+            </div>
+          </div>
         </div>
 
         <div className="flex flex-col rounded-xl border border-border bg-background p-5">
