@@ -10,13 +10,18 @@ export default function BusinessPage() {
     <div className="min-h-screen overflow-x-clip bg-background">
       <Navbar hideCart />
 
-      {/* ── Hero (teal block) — same visual treatment as the customer landing hero ── */}
-      <div className="relative overflow-hidden bg-primary">
+      {/* ── Hero (teal block) — same visual treatment as the customer landing hero.
+          On mobile the hero fills the viewport (min-h-dvh) via flex-col, with
+          the illustration strip pushed to the bottom via mt-auto so the extra
+          height opens up above the illustrations instead of stretching them.
+          sm+ reverts to plain block flow at its natural content height. ── */}
+      <div className="relative flex min-h-dvh flex-col overflow-hidden bg-primary sm:block sm:min-h-0">
         <div
           className="pointer-events-none absolute inset-0 bg-[url('/pattern-bg-hero.png')] bg-cover bg-center opacity-25"
           aria-hidden="true"
         />
         <motion.div
+          className="flex flex-1 flex-col sm:block"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
@@ -38,7 +43,7 @@ export default function BusinessPage() {
           </div>
 
           {/* Washing machine illustrations — same staggered composition/scaling technique as the customer hero */}
-          <div className="relative z-10 mt-8 h-[175px] overflow-x-clip overflow-y-hidden sm:h-[215px] md:h-[290px] lg:h-[388px]">
+          <div className="relative z-10 mt-auto h-[175px] overflow-x-clip overflow-y-hidden sm:mt-8 sm:h-[215px] md:h-[290px] lg:h-[388px]">
             <div className="pointer-events-none relative left-1/2 h-full w-[1440px] origin-top -translate-x-1/2 scale-[0.45] transform-gpu sm:scale-[0.55] md:scale-[0.75] lg:scale-100">
               {/* Back layer — mustard */}
               {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -31,9 +31,19 @@ export default function CustomerLandingPage() {
         padding/border to stop it) and escape above the hero entirely, leaving
         a gap of exposed page background between the navbar and the hero.
         overflow-hidden establishes a new block formatting context that
-        contains the margin instead.
+        contains the margin instead. This still matters at sm+, where the
+        flex layout below reverts to normal block flow.
+
+        On mobile the hero fills the viewport (min-h-dvh, using the dynamic
+        viewport unit so mobile browser chrome showing/hiding doesn't leave a
+        gap or clip content the way 100vh can) via flex-col, with the
+        illustration strip pushed to the bottom via mt-auto — flex items
+        never margin-collapse with each other or the container, so the extra
+        height opens up as space above the illustrations rather than
+        stretching them. sm+ reverts to plain block flow at its natural
+        content height, unchanged from before.
       */}
-      <div className="relative overflow-hidden bg-primary">
+      <div className="relative flex min-h-dvh flex-col overflow-hidden bg-primary sm:block sm:min-h-0">
       {/* Pattern overlay — its own layer so opacity fades the texture only, not the primary color or content */}
       <div
         className="pointer-events-none absolute inset-0 bg-[url('/pattern-bg-hero.png')] bg-cover bg-center opacity-25"
@@ -41,6 +51,7 @@ export default function CustomerLandingPage() {
       />
       {/* Content — fades in on mount since it's above the fold */}
       <motion.div
+        className="flex flex-1 flex-col sm:block"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
@@ -84,7 +95,7 @@ export default function CustomerLandingPage() {
         viewport width slightly — clipped by overflow-x-clip — rather than
         shrinking the illustrations below a readable size.
       */}
-      <div className="relative z-10 mt-8 h-[175px] overflow-x-clip overflow-y-hidden sm:h-[215px] md:h-[290px] lg:h-[388px]">
+      <div className="relative z-10 mt-auto h-[175px] overflow-x-clip overflow-y-hidden sm:mt-8 sm:h-[215px] md:h-[290px] lg:h-[388px]">
         <div className="pointer-events-none relative left-1/2 h-full w-[1440px] origin-top -translate-x-1/2 scale-[0.45] transform-gpu sm:scale-[0.55] md:scale-[0.75] lg:scale-100">
           {/* Back layer — coral */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
