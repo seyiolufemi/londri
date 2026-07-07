@@ -25,7 +25,9 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   approved: { label: "Approved", className: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400" },
   rejected: { label: "Rejected", className: "bg-destructive/10 text-destructive" },
   successful: { label: "Successful", className: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400" },
+  success: { label: "Success", className: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400" },
   failed: { label: "Failed", className: "bg-destructive/10 text-destructive" },
+  refunded: { label: "Refunded", className: "bg-muted text-muted-foreground" },
 }
 
 export default function StatusBadge({ status }: { status: string }) {
