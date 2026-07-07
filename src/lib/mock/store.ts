@@ -56,6 +56,13 @@ export interface KybFormData {
 }
 
 interface StoreState {
+  // Zustand's persist middleware rehydrates sessionStorage asynchronously —
+  // this starts false so consumers (e.g. the customer orders page's auth
+  // gate) can wait for real persisted state instead of redirecting on the
+  // momentary pre-hydration default.
+  hasHydrated: boolean
+  setHasHydrated: (value: boolean) => void
+
   signupData: SignupFormData
   signupStep: 1 | 2
   setSignupData: (data: Partial<SignupFormData>) => void
@@ -186,6 +193,9 @@ const EMPTY_KYB_DATA: KybFormData = {
 export const useStore = create<StoreState>()(
   persist(
     (set, get) => ({
+  hasHydrated: false,
+  setHasHydrated: (hasHydrated) => set({ hasHydrated }),
+
   signupData: { businessName: "", ownerName: "", email: "", phone: "", password: "" },
   signupStep: 1,
   setSignupData: (data) => set((state) => ({ signupData: { ...state.signupData, ...data } })),
@@ -430,6 +440,9 @@ export const useStore = create<StoreState>()(
         kybData: state.kybData,
         customerAuth: state.customerAuth,
       }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true)
+      },
     }
   )
 )

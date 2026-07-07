@@ -33,14 +33,15 @@ function itemsSummary(items: { name: string; quantity: number }[]): string {
 export default function CustomerOrdersPage() {
   const router = useRouter()
   const dispatch = useAppDispatch()
+  const hasHydrated = useStore((s) => s.hasHydrated)
   const isAuthenticated = useStore((s) => s.customerAuth.isAuthenticated)
   const customerSignOut = useStore((s) => s.customerSignOut)
   const [customerLogout] = useCustomerLogoutMutation()
   const [page, setPage] = useState(1)
 
   useEffect(() => {
-    if (!isAuthenticated) router.replace("/account/login")
-  }, [isAuthenticated, router])
+    if (hasHydrated && !isAuthenticated) router.replace("/account/login")
+  }, [hasHydrated, isAuthenticated, router])
 
   const pagedOrders = paginate(mockCustomerOrders, page, PAGE_SIZE)
 
@@ -54,7 +55,9 @@ export default function CustomerOrdersPage() {
     }
   }
 
-  if (!isAuthenticated) return null
+  // Wait for sessionStorage rehydration before deciding — otherwise a
+  // signed-in customer briefly reads as unauthenticated on every refresh.
+  if (!hasHydrated || !isAuthenticated) return null
 
   return (
     <div className="min-h-screen bg-background">

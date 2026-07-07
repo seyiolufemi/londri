@@ -24,13 +24,16 @@ function formatDate(iso: string): string {
 export default function CustomerOrderDetailPage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
+  const hasHydrated = useStore((s) => s.hasHydrated)
   const isAuthenticated = useStore((s) => s.customerAuth.isAuthenticated)
 
   useEffect(() => {
-    if (!isAuthenticated) router.replace("/account/login")
-  }, [isAuthenticated, router])
+    if (hasHydrated && !isAuthenticated) router.replace("/account/login")
+  }, [hasHydrated, isAuthenticated, router])
 
-  if (!isAuthenticated) return null
+  // Wait for sessionStorage rehydration before deciding — otherwise a
+  // signed-in customer briefly reads as unauthenticated on every refresh.
+  if (!hasHydrated || !isAuthenticated) return null
 
   const order = mockCustomerOrders.find((o) => o.id === params.id)
 
