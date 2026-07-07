@@ -1,14 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Navbar from "@/components/customer/Navbar"
 import { useStore } from "@/lib/mock/store"
 import { useAppDispatch } from "@/hooks/redux"
 import { apiManager } from "@/redux/apiManager"
-import { useCustomerLogoutMutation, useGetCustomerMeQuery } from "@/redux/api/customerAuthApi"
+import { useCustomerLogoutMutation } from "@/redux/api/customerAuthApi"
 import { useGetCustomerOrdersQuery, type CustomerOrderItem } from "@/redux/api/customerOrdersApi"
+import { useCustomerSession } from "@/lib/hooks/useCustomerSession"
 import StatusBadge from "@/components/shared/StatusBadge"
 import { Skeleton } from "@/components/ui/skeleton"
 import TablePagination, { paginate } from "@/components/shared/TablePagination"
@@ -50,23 +51,15 @@ function OrderRowSkeleton() {
 export default function CustomerOrdersPage() {
   const router = useRouter()
   const dispatch = useAppDispatch()
-  const hasHydrated = useStore((s) => s.hasHydrated)
-  const isAuthenticated = useStore((s) => s.customerAuth.isAuthenticated)
   const customerSignOut = useStore((s) => s.customerSignOut)
   const [customerLogout] = useCustomerLogoutMutation()
   const [page, setPage] = useState(1)
 
-  const { data: me } = useGetCustomerMeQuery(undefined, {
-    skip: !hasHydrated || !isAuthenticated,
-  })
+  const { hasHydrated, isAuthenticated, me } = useCustomerSession()
 
   const { data: orders, isLoading } = useGetCustomerOrdersQuery(undefined, {
     skip: !hasHydrated || !isAuthenticated,
   })
-
-  useEffect(() => {
-    if (hasHydrated && !isAuthenticated) router.replace("/account/login")
-  }, [hasHydrated, isAuthenticated, router])
 
   const allOrders = orders ?? []
   const pagedOrders = paginate(allOrders, page, PAGE_SIZE)

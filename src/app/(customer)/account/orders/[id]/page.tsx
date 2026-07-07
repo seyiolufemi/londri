@@ -1,12 +1,11 @@
 "use client"
 
-import { useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams } from "next/navigation"
 import Link from "next/link"
 import { ChevronLeft } from "lucide-react"
 import Navbar from "@/components/customer/Navbar"
-import { useStore } from "@/lib/mock/store"
 import { useGetCustomerOrdersQuery } from "@/redux/api/customerOrdersApi"
+import { useCustomerSession } from "@/lib/hooks/useCustomerSession"
 import StatusBadge from "@/components/shared/StatusBadge"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -24,19 +23,13 @@ function formatDate(iso: string): string {
 
 export default function CustomerOrderDetailPage() {
   const params = useParams<{ id: string }>()
-  const router = useRouter()
-  const hasHydrated = useStore((s) => s.hasHydrated)
-  const isAuthenticated = useStore((s) => s.customerAuth.isAuthenticated)
+  const { hasHydrated, isAuthenticated } = useCustomerSession()
 
   // No per-order detail endpoint exists — filter the same cached order-list
   // query (same query args as the orders page, so no extra network request).
   const { data: orders, isLoading } = useGetCustomerOrdersQuery(undefined, {
     skip: !hasHydrated || !isAuthenticated,
   })
-
-  useEffect(() => {
-    if (hasHydrated && !isAuthenticated) router.replace("/account/login")
-  }, [hasHydrated, isAuthenticated, router])
 
   // Wait for sessionStorage rehydration before deciding — otherwise a
   // signed-in customer briefly reads as unauthenticated on every refresh.
