@@ -4,6 +4,12 @@ export function formatNaira(amount: number): string {
   return "₦" + amount.toLocaleString("en-NG")
 }
 
+// The backend sends its Swagger placeholder value ("string") for optional
+// text fields that were never actually set — treat it as empty.
+export function hasRealValue(value: string | null | undefined): value is string {
+  return !!value && value !== "string"
+}
+
 export const STATUS_LABELS: Record<OrderStatus, string> = {
   requested: "Requested",
   confirmed: "Confirmed",

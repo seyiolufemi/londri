@@ -25,6 +25,7 @@ import {
   getNextActionLabel,
   getNextStatus,
   getOrderSteps,
+  hasRealValue,
   isStatusReached,
 } from "./constants"
 
@@ -187,13 +188,13 @@ export default function OrderDetailPanel({ orderId }: OrderDetailPanelProps) {
               <span className="text-xs text-muted-foreground">WhatsApp</span>
               <span className="text-sm text-foreground">{order.customer_whatsapp}</span>
             </div>
-            {order.to_be_delivered && order.delivery_address && (
+            {order.to_be_delivered && hasRealValue(order.delivery_address) && (
               <div className="flex items-start justify-between gap-4">
                 <span className="text-xs text-muted-foreground">Delivery Address</span>
                 <span className="text-right text-sm text-muted-foreground">{order.delivery_address}</span>
               </div>
             )}
-            {order.notes && (
+            {hasRealValue(order.notes) && (
               <div className="flex items-start justify-between gap-4">
                 <span className="text-xs text-muted-foreground">Note</span>
                 <span className="text-right text-sm text-muted-foreground">{order.notes}</span>
