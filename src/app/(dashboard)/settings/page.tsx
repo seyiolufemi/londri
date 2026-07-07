@@ -8,13 +8,11 @@ import { useStore } from "@/lib/mock/store"
 import type { BusinessProfileSettings } from "@/lib/mock/store"
 import type { OperatingDay } from "@/types"
 import { useKybStatus } from "@/lib/hooks/useKybStatus"
-import UploadZone from "@/components/shared/UploadZone"
 import { cn } from "@/lib/utils"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import {
   Select,
@@ -42,17 +40,16 @@ const NIGERIAN_BANKS = [
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
-const SWATCH_COLORS = [
-  "bg-blue-100 dark:bg-blue-950",
-  "bg-green-100 dark:bg-green-950",
-  "bg-amber-100 dark:bg-amber-950",
-  "bg-purple-100 dark:bg-purple-950",
-  "bg-rose-100 dark:bg-rose-950",
-  "bg-cyan-100 dark:bg-cyan-950",
-  "bg-orange-100 dark:bg-orange-950",
-  "bg-teal-100 dark:bg-teal-950",
-  "bg-indigo-100 dark:bg-indigo-950",
-  "bg-lime-100 dark:bg-lime-900",
+const ILLUSTRATION_VARIANTS = [
+  "variant-01-white.svg",
+  "variant-02-coral.svg",
+  "variant-03-navy.svg",
+  "variant-04-sage.svg",
+  "variant-05-mustard.svg",
+  "variant-06-rose.svg",
+  "variant-07-charcoal.svg",
+  "variant-08-skyblue.svg",
+  "variant-09-plum.svg",
 ]
 
 const MATCH_TOKENS = ["amara", "okonkwo", "sparkle", "wash", "laundry"]
@@ -158,7 +155,6 @@ export default function SettingsPage() {
 
   // ── Tab 1: Business Profile ───────────────────────────────────────────────
   const [profileName, setProfileName] = useState(businessProfile.businessName)
-  const [profileDescription, setProfileDescription] = useState(businessProfile.description)
   const [profileAddress, setProfileAddress] = useState(businessProfile.address)
   const [profileRadius, setProfileRadius] = useState(String(businessProfile.serviceAreaRadius))
   const [profileIllustration, setProfileIllustration] = useState(businessProfile.illustrationIndex)
@@ -169,7 +165,6 @@ export default function SettingsPage() {
   function handleSaveProfile() {
     const updates: Partial<BusinessProfileSettings> = {
       businessName: profileName,
-      description: profileDescription,
       address: profileAddress,
       serviceAreaRadius: Number(profileRadius) || 5,
       illustrationIndex: profileIllustration,
@@ -287,34 +282,6 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <Label htmlFor="biz-desc" className="mb-1.5 block text-sm">
-                Description
-              </Label>
-              <Textarea
-                id="biz-desc"
-                placeholder="Trusted neighborhood laundry service..."
-                value={profileDescription}
-                onChange={(e) => setProfileDescription(e.target.value)}
-                rows={3}
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                A short summary shown on your public profile.
-              </p>
-            </div>
-
-            <div>
-              <Label className="mb-1.5 block text-sm">Business Logo</Label>
-              <UploadZone
-                label="Upload your logo"
-                hint="PNG, JPG or SVG up to 2MB"
-                accept="image/*"
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Displayed on your customer-facing page and order receipts.
-              </p>
-            </div>
-
-            <div>
               <Label className="mb-1.5 block text-sm">Operating Hours</Label>
               <p className="mb-3 text-xs text-muted-foreground">
                 Customers see when you&apos;re open before booking a pickup.
@@ -409,23 +376,29 @@ export default function SettingsPage() {
             <div>
               <Label className="mb-1.5 block text-sm">Business Illustration</Label>
               <div className="grid grid-cols-5 gap-3">
-                {SWATCH_COLORS.map((color, idx) => (
+                {ILLUSTRATION_VARIANTS.map((filename, idx) => (
                   <button
-                    key={idx}
+                    key={filename}
                     type="button"
                     onClick={() => setProfileIllustration(idx)}
                     aria-label={`Illustration ${idx + 1}`}
                     aria-pressed={profileIllustration === idx}
                     className={cn(
-                      "relative flex h-16 w-full items-center justify-center rounded-lg border-2 transition-all",
-                      color,
+                      "relative flex h-16 w-full items-center justify-center rounded-lg border-2 bg-muted/20 p-1.5 transition-all",
                       profileIllustration === idx
                         ? "border-primary ring-2 ring-primary ring-offset-2 ring-offset-background"
                         : "border-border hover:border-muted-foreground"
                     )}
                   >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/illustrations/washing-machines/${filename}`}
+                      alt=""
+                      aria-hidden="true"
+                      className="h-full w-full object-contain"
+                    />
                     {profileIllustration === idx && (
-                      <div className="flex size-5 items-center justify-center rounded-full bg-foreground/80">
+                      <div className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-foreground/80">
                         <Check className="size-3 text-background" />
                       </div>
                     )}
@@ -433,7 +406,7 @@ export default function SettingsPage() {
                 ))}
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
-                Choose a colour theme to represent your business on the customer landing page.
+                Choose an illustration to represent your business on the customer landing page.
               </p>
             </div>
 
