@@ -144,7 +144,7 @@ interface StoreState {
   setCartSheetOpen: (open: boolean) => void
 
   customerAuth: CustomerAuth
-  setCustomerAuth: (email: string) => void
+  setCustomerAuth: (customer: { id: string; name: string; email: string; role: string }) => void
   customerSignOut: () => void
 }
 
@@ -417,14 +417,19 @@ export const useStore = create<StoreState>()(
   cartSheetOpen: false,
   setCartSheetOpen: (cartSheetOpen) => set({ cartSheetOpen }),
 
-  customerAuth: { isAuthenticated: false, email: null },
-  setCustomerAuth: (email) => set({ customerAuth: { isAuthenticated: true, email } }),
-  customerSignOut: () => set({ customerAuth: { isAuthenticated: false, email: null } }),
+  customerAuth: { isAuthenticated: false, id: null, name: null, email: null, role: null },
+  setCustomerAuth: (customer) => set({ customerAuth: { isAuthenticated: true, ...customer } }),
+  customerSignOut: () =>
+    set({ customerAuth: { isAuthenticated: false, id: null, name: null, email: null, role: null } }),
     }),
     {
       name: "londri-kyb-progress",
       storage: createJSONStorage(() => sessionStorage),
-      partialize: (state) => ({ kybStep: state.kybStep, kybData: state.kybData }),
+      partialize: (state) => ({
+        kybStep: state.kybStep,
+        kybData: state.kybData,
+        customerAuth: state.customerAuth,
+      }),
     }
   )
 )

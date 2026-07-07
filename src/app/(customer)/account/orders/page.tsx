@@ -6,6 +6,9 @@ import Link from "next/link"
 import Navbar from "@/components/customer/Navbar"
 import { useStore } from "@/lib/mock/store"
 import { mockCustomerOrders } from "@/lib/mock/data"
+import { useAppDispatch } from "@/hooks/redux"
+import { apiManager } from "@/redux/apiManager"
+import { useCustomerLogoutMutation } from "@/redux/api/customerAuthApi"
 import StatusBadge from "@/components/shared/StatusBadge"
 import TablePagination, { paginate } from "@/components/shared/TablePagination"
 
@@ -29,8 +32,10 @@ function itemsSummary(items: { name: string; quantity: number }[]): string {
 
 export default function CustomerOrdersPage() {
   const router = useRouter()
+  const dispatch = useAppDispatch()
   const isAuthenticated = useStore((s) => s.customerAuth.isAuthenticated)
   const customerSignOut = useStore((s) => s.customerSignOut)
+  const [customerLogout] = useCustomerLogoutMutation()
   const [page, setPage] = useState(1)
 
   useEffect(() => {
@@ -39,9 +44,14 @@ export default function CustomerOrdersPage() {
 
   const pagedOrders = paginate(mockCustomerOrders, page, PAGE_SIZE)
 
-  function handleSignOut() {
-    customerSignOut()
-    router.push("/")
+  async function handleSignOut() {
+    try {
+      await customerLogout().unwrap()
+    } finally {
+      dispatch(apiManager.util.resetApiState())
+      customerSignOut()
+      router.push("/")
+    }
   }
 
   if (!isAuthenticated) return null
