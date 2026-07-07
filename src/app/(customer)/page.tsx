@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { ArrowRight } from "lucide-react"
 import HeroSearch from "@/components/customer/HeroSearch"
 import BusinessCard from "@/components/customer/BusinessCard"
@@ -6,7 +7,19 @@ import Footer from "@/components/customer/Footer"
 import { Button } from "@/components/ui/button"
 import { discoveryBusinesses } from "@/lib/mock/data"
 
-export default function CustomerLandingPage() {
+interface CustomerLandingPageProps {
+  searchParams: Promise<{ orderId?: string }>
+}
+
+export default async function CustomerLandingPage({ searchParams }: CustomerLandingPageProps) {
+  // The Nomba checkout's default return URL points at the site root — the
+  // payment gateway has no way to know this is an owner-dashboard app, so we
+  // catch its redirect here and route the owner back into their dashboard.
+  const { orderId } = await searchParams
+  if (orderId) {
+    redirect(`/orders?orderId=${orderId}`)
+  }
+
   return (
     <div className="min-h-screen overflow-x-clip bg-background">
       {/* ── Hero (teal block) ── */}

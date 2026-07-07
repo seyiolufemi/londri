@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Plus } from "lucide-react"
 import { toast } from "sonner"
 import { format } from "date-fns"
@@ -30,6 +30,7 @@ function toPeriodParams(range: DateRangeValue): Pick<ListOrdersParams, "period" 
 
 export default function OrdersPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { data: business } = useGetMyBusinessQuery()
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
@@ -51,6 +52,23 @@ export default function OrdersPage() {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
   }, [search])
+
+  // Coming back from a payment redirect (?orderId=...) — open that order's detail,
+  // adjusted during render rather than in an effect (see react-hooks/set-state-in-effect).
+  const orderIdParam = searchParams.get("orderId")
+  const [handledOrderIdParam, setHandledOrderIdParam] = useState<string | null>(null)
+  if (orderIdParam && orderIdParam !== handledOrderIdParam) {
+    setHandledOrderIdParam(orderIdParam)
+    setSelectedOrderId(orderIdParam)
+    setSheetOpen(true)
+  }
+
+  // Strip the query param once handled — a genuine side effect on browser history.
+  useEffect(() => {
+    if (orderIdParam) {
+      router.replace("/orders")
+    }
+  }, [orderIdParam, router])
 
   const params: ListOrdersParams = {
     ...(statusFilter !== "all" && { status: statusFilter }),
