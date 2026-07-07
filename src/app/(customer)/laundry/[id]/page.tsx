@@ -368,13 +368,15 @@ export default function LaundryDetailPage() {
           <h2 className="font-[family-name:var(--font-jakarta)] text-xl font-semibold text-foreground">
             Services &amp; Pricing
           </h2>
-          <button
-            type="button"
-            onClick={() => setQuoteDialogOpen(true)}
-            className="cursor-pointer text-sm text-muted-foreground underline-offset-2 hover:underline"
-          >
-            Got a lot of laundry? Request a quote instead
-          </button>
+          {business.phone && (
+            <button
+              type="button"
+              onClick={() => setQuoteDialogOpen(true)}
+              className="cursor-pointer text-sm text-muted-foreground underline-offset-2 hover:underline"
+            >
+              Got a lot of laundry? Request a quote instead
+            </button>
+          )}
         </div>
 
         {/* Category filter — only shown when it would actually filter something */}
@@ -515,12 +517,14 @@ export default function LaundryDetailPage() {
       )}
 
       {/* ── Request a Quote ── */}
-      <RequestQuoteDialog
-        open={quoteDialogOpen}
-        onOpenChange={setQuoteDialogOpen}
-        businessName={business.name}
-        whatsappNumber={business.phone}
-      />
+      {business.phone && (
+        <RequestQuoteDialog
+          open={quoteDialogOpen}
+          onOpenChange={setQuoteDialogOpen}
+          businessName={business.name}
+          whatsappNumber={business.phone}
+        />
+      )}
     </div>
   )
 }

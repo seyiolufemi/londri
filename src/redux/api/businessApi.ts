@@ -43,7 +43,9 @@ export interface DiscoverableBusiness {
 }
 
 // Single public business detail (GET /business/{id}) — same shape as
-// BusinessResponse minus cac_registration_number.
+// BusinessResponse minus cac_registration_number. phone/email/logo_url/
+// current_kyb_status are all nullable in practice (e.g. an unverified
+// business with no bank/contact info on file yet).
 export interface BusinessDetailResponse {
   id: string
   name: string
@@ -52,12 +54,12 @@ export interface BusinessDetailResponse {
   state: string
   latitude: number
   longitude: number
-  phone: string
-  email: string
-  logo_url: string
+  phone: string | null
+  email: string | null
+  logo_url: string | null
   is_active: boolean
   is_discoverable: boolean
-  current_kyb_status: string
+  current_kyb_status: string | null
   created_at: string
 }
 
