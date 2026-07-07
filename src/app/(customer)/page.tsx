@@ -1,8 +1,6 @@
 "use client"
 
-import { use } from "react"
 import Link from "next/link"
-import { redirect } from "next/navigation"
 import { motion } from "framer-motion"
 import { ArrowRight } from "lucide-react"
 import Navbar from "@/components/customer/Navbar"
@@ -12,23 +10,7 @@ import Footer from "@/components/customer/Footer"
 import { Button } from "@/components/ui/button"
 import { discoveryBusinesses } from "@/lib/mock/data"
 
-interface CustomerLandingPageProps {
-  searchParams: Promise<{ orderId?: string }>
-}
-
-export default function CustomerLandingPage({ searchParams }: CustomerLandingPageProps) {
-  // The Nomba checkout's default return URL points at the site root — the
-  // payment gateway has no way to know this is an owner-dashboard app, so we
-  // catch its redirect here and route the owner to a confirmation screen
-  // (the gateway sends the owner back here on failure/cancel too, so we
-  // can't just assume success from the redirect alone). This page is a
-  // Client Component (framer-motion needs the browser), so searchParams is
-  // unwrapped with React's use() instead of awaited.
-  const { orderId } = use(searchParams)
-  if (orderId) {
-    redirect(`/orders/callback?orderId=${orderId}`)
-  }
-
+export default function CustomerLandingPage() {
   return (
     <div className="min-h-screen overflow-x-clip bg-background">
       <Navbar />
