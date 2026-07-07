@@ -57,6 +57,7 @@ function DiscoverPageContent() {
   const searchParams = useSearchParams()
   const [search, setSearch] = useState(() => searchParams.get("q") ?? "")
   const [serviceTypeFilters, setServiceTypeFilters] = useState<ServiceType[]>([])
+  const [locationFilter, setLocationFilter] = useState("all")
   const [sort, setSort] = useState<SortOption>("nearest")
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -71,15 +72,26 @@ function DiscoverPageContent() {
 
   const { coords: customerCoords } = useGeolocation()
 
+  const availableLocations = useMemo(
+    () => Array.from(new Set(discoverable.map((b) => b.city))).sort(),
+    [discoverable]
+  )
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     const result = discoverable.filter((b) => {
       const matchesSearch =
-        !q || b.name.toLowerCase().includes(q) || b.address.toLowerCase().includes(q)
+        !q ||
+        b.name.toLowerCase().includes(q) ||
+        b.address.toLowerCase().includes(q) ||
+        b.city.toLowerCase().includes(q) ||
+        b.state.toLowerCase().includes(q) ||
+        pickServiceTypes(b.id).some((t) => SERVICE_TYPE_LABELS[t].toLowerCase().includes(q))
+      const matchesLocation = locationFilter === "all" || b.city === locationFilter
       const matchesServiceType =
         serviceTypeFilters.length === 0 ||
         serviceTypeFilters.some((t) => pickServiceTypes(b.id).includes(t))
-      return matchesSearch && matchesServiceType
+      return matchesSearch && matchesLocation && matchesServiceType
     })
 
     return [...result].sort((a, b) => {
@@ -87,12 +99,12 @@ function DiscoverPageContent() {
       if (sort === "price_desc") return pickCheapestPrice(b.id) - pickCheapestPrice(a.id)
       return getDistanceKm(a, customerCoords) - getDistanceKm(b, customerCoords)
     })
-  }, [discoverable, search, serviceTypeFilters, sort, customerCoords])
+  }, [discoverable, search, locationFilter, serviceTypeFilters, sort, customerCoords])
 
   // Filters/search/sort reset the loaded batch back to the first page. Adjusted
   // during render (React's recommended pattern for derived resets) rather than
   // in an effect, which would cause an extra render pass after every change.
-  const filterKey = `${search}|${sort}|${serviceTypeFilters.join(",")}`
+  const filterKey = `${search}|${locationFilter}|${sort}|${serviceTypeFilters.join(",")}`
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey)
@@ -134,6 +146,13 @@ function DiscoverPageContent() {
   }
 
   const activeFilters: { key: string; label: string; onRemove: () => void }[] = []
+  if (locationFilter !== "all") {
+    activeFilters.push({
+      key: "location",
+      label: locationFilter,
+      onRemove: () => setLocationFilter("all"),
+    })
+  }
   serviceTypeFilters.forEach((type) => {
     activeFilters.push({
       key: `svc-${type}`,
@@ -177,6 +196,20 @@ function DiscoverPageContent() {
 
         {/* Filter bar */}
         <div className="mt-4 mb-6 flex flex-wrap gap-3">
+          <Select value={locationFilter} onValueChange={setLocationFilter}>
+            <SelectTrigger className="w-[170px]">
+              <SelectValue placeholder="All Locations" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Locations</SelectItem>
+              {availableLocations.map((city) => (
+                <SelectItem key={city} value={city}>
+                  {city}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className="justify-between font-normal">
@@ -241,7 +274,7 @@ function DiscoverPageContent() {
         <p className="mb-4 text-sm text-muted-foreground">
           {search.trim()
             ? `Showing ${filtered.length} results for "${search.trim()}"`
-            : serviceTypeFilters.length > 0
+            : serviceTypeFilters.length > 0 || locationFilter !== "all"
               ? `Showing ${filtered.length} results`
               : `Showing ${filtered.length} laundries near you`}
         </p>
