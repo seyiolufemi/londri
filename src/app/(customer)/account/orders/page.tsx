@@ -8,7 +8,7 @@ import { useStore } from "@/lib/mock/store"
 import { mockCustomerOrders } from "@/lib/mock/data"
 import { useAppDispatch } from "@/hooks/redux"
 import { apiManager } from "@/redux/apiManager"
-import { useCustomerLogoutMutation } from "@/redux/api/customerAuthApi"
+import { useCustomerLogoutMutation, useGetCustomerMeQuery } from "@/redux/api/customerAuthApi"
 import StatusBadge from "@/components/shared/StatusBadge"
 import TablePagination, { paginate } from "@/components/shared/TablePagination"
 
@@ -39,6 +39,12 @@ export default function CustomerOrdersPage() {
   const [customerLogout] = useCustomerLogoutMutation()
   const [page, setPage] = useState(1)
 
+  // Real /auth/me call for the signed-in customer — wired here so its actual
+  // response shape can be inspected (network tab) and fixed once known.
+  const { data: me } = useGetCustomerMeQuery(undefined, {
+    skip: !hasHydrated || !isAuthenticated,
+  })
+
   useEffect(() => {
     if (hasHydrated && !isAuthenticated) router.replace("/account/login")
   }, [hasHydrated, isAuthenticated, router])
@@ -65,9 +71,16 @@ export default function CustomerOrdersPage() {
 
       <div className="mx-auto max-w-2xl px-6 py-10">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="font-[family-name:var(--font-jakarta)] text-xl font-semibold text-foreground">
-            Your Orders
-          </h1>
+          <div>
+            <h1 className="font-[family-name:var(--font-jakarta)] text-xl font-semibold text-foreground">
+              Your Orders
+            </h1>
+            {me && (
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Signed in as {me.name} ({me.email})
+              </p>
+            )}
+          </div>
           <button
             type="button"
             onClick={handleSignOut}
