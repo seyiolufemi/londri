@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Navbar from "@/components/customer/Navbar"
 import { useStore } from "@/lib/mock/store"
-import { mockCustomerOrders } from "@/lib/mock/data"
 import { useAppDispatch } from "@/hooks/redux"
 import { apiManager } from "@/redux/apiManager"
 import { useCustomerLogoutMutation, useGetCustomerMeQuery } from "@/redux/api/customerAuthApi"
+import { useGetCustomerOrdersQuery, type CustomerOrderItem } from "@/redux/api/customerOrdersApi"
 import StatusBadge from "@/components/shared/StatusBadge"
+import { Skeleton } from "@/components/ui/skeleton"
 import TablePagination, { paginate } from "@/components/shared/TablePagination"
 
 const PAGE_SIZE = 3
@@ -26,8 +27,24 @@ function formatDate(iso: string): string {
   })
 }
 
-function itemsSummary(items: { name: string; quantity: number }[]): string {
-  return items.map((i) => `${i.name} × ${i.quantity}`).join(", ")
+function itemsSummary(items: CustomerOrderItem[]): string {
+  return items.map((i) => `${i.item_name} × ${i.quantity}`).join(", ")
+}
+
+function OrderRowSkeleton() {
+  return (
+    <div className="flex flex-col gap-1.5 p-4">
+      <div className="flex items-center justify-between gap-4">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-5 w-16 rounded-full" />
+      </div>
+      <Skeleton className="h-3 w-48" />
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-3 w-20" />
+        <Skeleton className="h-3 w-16" />
+      </div>
+    </div>
+  )
 }
 
 export default function CustomerOrdersPage() {
@@ -39,9 +56,11 @@ export default function CustomerOrdersPage() {
   const [customerLogout] = useCustomerLogoutMutation()
   const [page, setPage] = useState(1)
 
-  // Real /auth/me call for the signed-in customer — wired here so its actual
-  // response shape can be inspected (network tab) and fixed once known.
   const { data: me } = useGetCustomerMeQuery(undefined, {
+    skip: !hasHydrated || !isAuthenticated,
+  })
+
+  const { data: orders, isLoading } = useGetCustomerOrdersQuery(undefined, {
     skip: !hasHydrated || !isAuthenticated,
   })
 
@@ -49,7 +68,8 @@ export default function CustomerOrdersPage() {
     if (hasHydrated && !isAuthenticated) router.replace("/account/login")
   }, [hasHydrated, isAuthenticated, router])
 
-  const pagedOrders = paginate(mockCustomerOrders, page, PAGE_SIZE)
+  const allOrders = orders ?? []
+  const pagedOrders = paginate(allOrders, page, PAGE_SIZE)
 
   async function handleSignOut() {
     try {
@@ -91,35 +111,49 @@ export default function CustomerOrdersPage() {
         </div>
 
         <div className="flex flex-col divide-y divide-border rounded-xl border border-border bg-background">
-          {pagedOrders.map((order) => (
-            <Link
-              key={order.id}
-              href={`/account/orders/${order.id}`}
-              className="flex flex-col gap-1.5 p-4 transition-colors hover:bg-muted/50"
-            >
-              <div className="flex items-center justify-between gap-4">
-                <p className="text-sm font-semibold text-foreground">{order.businessName}</p>
-                <StatusBadge status={order.status} />
-              </div>
-              <p className="line-clamp-1 text-xs text-muted-foreground">
-                {itemsSummary(order.items)}
-              </p>
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{formatDate(order.createdAt)}</span>
-                <span className="font-medium tabular-nums text-foreground">
-                  {formatNaira(order.totalAmount)}
-                </span>
-              </div>
-            </Link>
-          ))}
+          {isLoading ? (
+            <>
+              <OrderRowSkeleton />
+              <OrderRowSkeleton />
+              <OrderRowSkeleton />
+            </>
+          ) : allOrders.length === 0 ? (
+            <p className="p-8 text-center text-sm text-muted-foreground">
+              You haven&apos;t placed any orders yet.
+            </p>
+          ) : (
+            pagedOrders.map((order) => (
+              <Link
+                key={order.reference_id}
+                href={`/account/orders/${encodeURIComponent(order.reference_id)}`}
+                className="flex flex-col gap-1.5 p-4 transition-colors hover:bg-muted/50"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <p className="text-sm font-semibold text-foreground">{order.reference_id}</p>
+                  <StatusBadge status={order.status} />
+                </div>
+                <p className="line-clamp-1 text-xs text-muted-foreground">
+                  {itemsSummary(order.items)}
+                </p>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{formatDate(order.created_at)}</span>
+                  <span className="font-medium tabular-nums text-foreground">
+                    {formatNaira(order.amount)}
+                  </span>
+                </div>
+              </Link>
+            ))
+          )}
         </div>
 
-        <TablePagination
-          currentPage={page}
-          totalItems={mockCustomerOrders.length}
-          pageSize={PAGE_SIZE}
-          onPageChange={setPage}
-        />
+        {!isLoading && allOrders.length > 0 && (
+          <TablePagination
+            currentPage={page}
+            totalItems={allOrders.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+          />
+        )}
       </div>
     </div>
   )
