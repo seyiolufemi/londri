@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation"
 import { AlertCircle, Clock } from "lucide-react"
 import Sidebar from "@/components/layout/Sidebar"
 import Header from "@/components/layout/Header"
-import DemoToggle from "@/components/layout/DemoToggle"
-import { useKybStatus } from "@/lib/hooks/useKybStatus"
+import { useGetMyBusinessQuery } from "@/redux/api/businessApi"
+import { toKybStatus } from "@/lib/kybStatus"
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const { kybStatus } = useKybStatus()
+  const { data: business, isLoading: businessLoading } = useGetMyBusinessQuery()
+  const kybStatus = toKybStatus(business?.current_kyb_status, businessLoading)
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -57,8 +58,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
         <main className="flex-1 overflow-y-auto bg-muted/30 p-8">{children}</main>
       </div>
-
-      <DemoToggle />
     </div>
   )
 }

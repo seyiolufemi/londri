@@ -7,6 +7,8 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   picked_up: { label: "Picked Up", className: "bg-cyan-50 text-cyan-600 dark:bg-cyan-950/50 dark:text-cyan-400" },
   in_progress: { label: "In Progress", className: "bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400" },
   ready: { label: "Ready", className: "bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-400" },
+  ready_for_pickup: { label: "Ready for Pickup", className: "bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-400" },
+  out_for_delivery: { label: "Out for Delivery", className: "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400" },
   completed: { label: "Completed", className: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400" },
   cancelled: { label: "Cancelled", className: "bg-muted text-muted-foreground" },
   // legacy (kept for safety)
@@ -23,7 +25,9 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   approved: { label: "Approved", className: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400" },
   rejected: { label: "Rejected", className: "bg-destructive/10 text-destructive" },
   successful: { label: "Successful", className: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400" },
+  success: { label: "Success", className: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400" },
   failed: { label: "Failed", className: "bg-destructive/10 text-destructive" },
+  refunded: { label: "Refunded", className: "bg-muted text-muted-foreground" },
 }
 
 export default function StatusBadge({ status }: { status: string }) {

@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Pencil, CheckCircle2 } from "lucide-react"
 import { toast } from "sonner"
 import { useStore } from "@/lib/mock/store"
+import { useGetMeQuery } from "@/redux/api/authApi"
 import UploadZone from "@/components/shared/UploadZone"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -21,24 +22,31 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 // ─── Personal Info Section ────────────────────────────────────────────────────
 
 function PersonalInfoSection() {
-  const storedEmail = useStore((s) => s.profileEmail)
-  const storedPhone = useStore((s) => s.profilePhone)
+  const { data: me } = useGetMeQuery()
   const avatarUrl = useStore((s) => s.profileAvatarUrl)
-  const setProfileEmail = useStore((s) => s.setProfileEmail)
-  const setProfilePhone = useStore((s) => s.setProfilePhone)
   const setProfileAvatarUrl = useStore((s) => s.setProfileAvatarUrl)
 
-  const [email, setEmail] = useState(storedEmail)
-  const [phone, setPhone] = useState(storedPhone)
+  const [confirmedPhone, setConfirmedPhone] = useState("")
+  const [email, setEmail] = useState("")
+  const [phone, setPhone] = useState("")
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false)
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
 
   const [verifyingPhone, setVerifyingPhone] = useState(false)
   const [otpValue, setOtpValue] = useState("")
 
+  // Seed the editable fields from /auth/me once it loads, rather than in an
+  // effect — avoids an extra render pass (see react-hooks/set-state-in-effect).
+  const [hasPrefilled, setHasPrefilled] = useState(false)
+  if (me && !hasPrefilled) {
+    setHasPrefilled(true)
+    setConfirmedPhone(me.phone)
+    setEmail(me.email)
+    setPhone(me.phone)
+  }
+
   function handleSave() {
-    setProfileEmail(email)
-    if (phone !== storedPhone) {
+    if (phone !== confirmedPhone) {
       setVerifyingPhone(true)
       setOtpValue("")
     } else {
@@ -47,14 +55,14 @@ function PersonalInfoSection() {
   }
 
   function handleVerifyPhone() {
-    setProfilePhone(phone)
+    setConfirmedPhone(phone)
     setVerifyingPhone(false)
     setOtpValue("")
     toast.success("Phone number updated")
   }
 
   function handleCancelVerify() {
-    setPhone(storedPhone)
+    setPhone(confirmedPhone)
     setVerifyingPhone(false)
     setOtpValue("")
   }
@@ -132,7 +140,7 @@ function PersonalInfoSection() {
             <Label htmlFor="profile-name" className="mb-1.5 block text-sm">
               Full name
             </Label>
-            <Input id="profile-name" value="Amara Okonkwo" disabled />
+            <Input id="profile-name" value={me?.name ?? ""} disabled />
             <p className="mt-1 text-xs text-muted-foreground">
               To update your legal name, contact support.
             </p>
@@ -166,7 +174,7 @@ function PersonalInfoSection() {
             <Label htmlFor="profile-role" className="mb-1.5 block text-sm">
               Role
             </Label>
-            <Input id="profile-role" value="Owner" disabled />
+            <Input id="profile-role" value={me?.role ?? ""} disabled />
           </div>
 
           <Button onClick={handleSave}>Save Changes</Button>

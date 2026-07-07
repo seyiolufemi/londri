@@ -1,13 +1,13 @@
 "use client"
 
-import { useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, MapPin } from "lucide-react"
+import { ChevronLeft } from "lucide-react"
 import Navbar from "@/components/customer/Navbar"
-import { useStore } from "@/lib/mock/store"
-import { mockCustomerOrders } from "@/lib/mock/data"
+import { useGetCustomerOrdersQuery } from "@/redux/api/customerOrdersApi"
+import { useCustomerSession } from "@/lib/hooks/useCustomerSession"
 import StatusBadge from "@/components/shared/StatusBadge"
+import { Skeleton } from "@/components/ui/skeleton"
 
 function formatNaira(amount: number): string {
   return "₦" + amount.toLocaleString("en-NG")
@@ -23,16 +23,32 @@ function formatDate(iso: string): string {
 
 export default function CustomerOrderDetailPage() {
   const params = useParams<{ id: string }>()
-  const router = useRouter()
-  const isAuthenticated = useStore((s) => s.customerAuth.isAuthenticated)
+  const { hasHydrated, isAuthenticated } = useCustomerSession()
 
-  useEffect(() => {
-    if (!isAuthenticated) router.replace("/account/login")
-  }, [isAuthenticated, router])
+  // No per-order detail endpoint exists — filter the same cached order-list
+  // query (same query args as the orders page, so no extra network request).
+  const { data: orders, isLoading } = useGetCustomerOrdersQuery(undefined, {
+    skip: !hasHydrated || !isAuthenticated,
+  })
 
-  if (!isAuthenticated) return null
+  // Wait for sessionStorage rehydration before deciding — otherwise a
+  // signed-in customer briefly reads as unauthenticated on every refresh.
+  if (!hasHydrated || !isAuthenticated) return null
 
-  const order = mockCustomerOrders.find((o) => o.id === params.id)
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="mx-auto max-w-2xl px-6 py-10">
+          <Skeleton className="mb-5 h-4 w-32" />
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="mt-6 h-32 w-full rounded-lg" />
+        </div>
+      </div>
+    )
+  }
+
+  const order = (orders ?? []).find((o) => o.reference_id === decodeURIComponent(params.id))
 
   if (!order) {
     return (
@@ -67,42 +83,31 @@ export default function CustomerOrderDetailPage() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="font-[family-name:var(--font-jakarta)] text-xl font-semibold text-foreground">
-              {order.businessName}
+              {order.reference_id}
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">{order.reference}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{order.customer_name}</p>
           </div>
           <StatusBadge status={order.status} />
         </div>
 
-        <p className="mt-2 text-sm text-muted-foreground">{formatDate(order.createdAt)}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{formatDate(order.created_at)}</p>
 
-        {/* Item breakdown */}
+        {/* Item breakdown — no per-item price in this response, only the order total */}
         <div className="mt-6 rounded-lg border border-border bg-background">
           {order.items.map((item, idx) => (
             <div
-              key={item.priceListItemId}
+              key={item.item_name}
               className={`flex items-center justify-between p-4 ${idx > 0 ? "border-t border-border" : ""}`}
             >
-              <div>
-                <p className="text-sm font-medium text-foreground">{item.name}</p>
-                <p className="text-xs text-muted-foreground">Qty {item.quantity}</p>
-              </div>
-              <span className="text-sm font-medium tabular-nums text-foreground">
-                {formatNaira(item.subtotal)}
-              </span>
+              <p className="text-sm font-medium text-foreground">{item.item_name}</p>
+              <span className="text-xs text-muted-foreground">Qty {item.quantity}</span>
             </div>
           ))}
           <div className="flex items-center justify-between border-t border-border p-4 text-sm font-semibold">
             <span className="text-foreground">Total</span>
-            <span className="tabular-nums text-foreground">{formatNaira(order.totalAmount)}</span>
+            <span className="tabular-nums text-foreground">{formatNaira(order.amount)}</span>
           </div>
         </div>
-
-        {/* Pickup address */}
-        <p className="mt-4 flex items-center gap-1.5 text-sm text-muted-foreground">
-          <MapPin className="size-3.5 shrink-0" />
-          {order.pickupAddress}
-        </p>
       </div>
     </div>
   )

@@ -11,7 +11,6 @@ import type {
   OrderStatusEvent,
   Transaction,
   CustomerSubscription,
-  KybStatus,
   OrderStatus,
   Payout,
   PayoutStatus,
@@ -57,6 +56,13 @@ export interface KybFormData {
 }
 
 interface StoreState {
+  // Zustand's persist middleware rehydrates sessionStorage asynchronously —
+  // this starts false so consumers (e.g. the customer orders page's auth
+  // gate) can wait for real persisted state instead of redirecting on the
+  // momentary pre-hydration default.
+  hasHydrated: boolean
+  setHasHydrated: (value: boolean) => void
+
   signupData: SignupFormData
   signupStep: 1 | 2
   setSignupData: (data: Partial<SignupFormData>) => void
@@ -67,9 +73,6 @@ interface StoreState {
   setKybData: (data: Partial<KybFormData>) => void
   setKybStep: (step: 1 | 2 | 3 | 4) => void
   resetKybData: () => void
-
-  kybStatus: KybStatus
-  setKybStatus: (status: KybStatus) => void
 
   businesses: Business[]
   kybSubmissions: KybSubmission[]
@@ -127,11 +130,7 @@ interface StoreState {
   setBusinessProfile: (profile: Partial<BusinessProfileSettings>) => void
   setBusinessBankDetails: (bankName: string, accountNumber: string, accountName: string) => void
 
-  profileEmail: string
-  profilePhone: string
   profileAvatarUrl: string | null
-  setProfileEmail: (email: string) => void
-  setProfilePhone: (phone: string) => void
   setProfileAvatarUrl: (url: string | null) => void
 
   notifications: Notification[]
@@ -152,7 +151,7 @@ interface StoreState {
   setCartSheetOpen: (open: boolean) => void
 
   customerAuth: CustomerAuth
-  setCustomerAuth: (email: string) => void
+  setCustomerAuth: (customer: { id: string; name: string; email: string; role: string }) => void
   customerSignOut: () => void
 }
 
@@ -194,6 +193,9 @@ const EMPTY_KYB_DATA: KybFormData = {
 export const useStore = create<StoreState>()(
   persist(
     (set, get) => ({
+  hasHydrated: false,
+  setHasHydrated: (hasHydrated) => set({ hasHydrated }),
+
   signupData: { businessName: "", ownerName: "", email: "", phone: "", password: "" },
   signupStep: 1,
   setSignupData: (data) => set((state) => ({ signupData: { ...state.signupData, ...data } })),
@@ -204,9 +206,6 @@ export const useStore = create<StoreState>()(
   setKybData: (data) => set((state) => ({ kybData: { ...state.kybData, ...data } })),
   setKybStep: (kybStep) => set({ kybStep }),
   resetKybData: () => set({ kybStep: 1, kybData: EMPTY_KYB_DATA }),
-
-  kybStatus: "pending",
-  setKybStatus: (kybStatus) => set({ kybStatus }),
 
   businesses: initialBusinesses,
   kybSubmissions: initialKybSubmissions,
@@ -360,11 +359,7 @@ export const useStore = create<StoreState>()(
   setBusinessBankDetails: (bankName, accountNumber, accountName) =>
     set({ businessBankName: bankName, businessAccountNumber: accountNumber, businessAccountName: accountName }),
 
-  profileEmail: "amara@sparklewash.ng",
-  profilePhone: "+234 801 234 5678",
   profileAvatarUrl: null,
-  setProfileEmail: (profileEmail) => set({ profileEmail }),
-  setProfilePhone: (profilePhone) => set({ profilePhone }),
   setProfileAvatarUrl: (profileAvatarUrl) => set({ profileAvatarUrl }),
 
   notifications: initialNotifications,
@@ -432,14 +427,22 @@ export const useStore = create<StoreState>()(
   cartSheetOpen: false,
   setCartSheetOpen: (cartSheetOpen) => set({ cartSheetOpen }),
 
-  customerAuth: { isAuthenticated: false, email: null },
-  setCustomerAuth: (email) => set({ customerAuth: { isAuthenticated: true, email } }),
-  customerSignOut: () => set({ customerAuth: { isAuthenticated: false, email: null } }),
+  customerAuth: { isAuthenticated: false, id: null, name: null, email: null, role: null },
+  setCustomerAuth: (customer) => set({ customerAuth: { isAuthenticated: true, ...customer } }),
+  customerSignOut: () =>
+    set({ customerAuth: { isAuthenticated: false, id: null, name: null, email: null, role: null } }),
     }),
     {
       name: "londri-kyb-progress",
       storage: createJSONStorage(() => sessionStorage),
-      partialize: (state) => ({ kybStep: state.kybStep, kybData: state.kybData }),
+      partialize: (state) => ({
+        kybStep: state.kybStep,
+        kybData: state.kybData,
+        customerAuth: state.customerAuth,
+      }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true)
+      },
     }
   )
 )

@@ -3,11 +3,14 @@
 import { useState, useMemo, useEffect } from "react"
 import { toast } from "sonner"
 import { useStore } from "@/lib/mock/store"
+import { useGetMyBusinessQuery } from "@/redux/api/businessApi"
+import { useGetPlansForBusinessQuery } from "@/redux/api/catalogApi"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Dialog,
   DialogContent,
@@ -16,22 +19,14 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Landmark, Link as LinkIcon } from "lucide-react"
-import type { CustomerSubscription, PriceCategory } from "@/types"
+import type { CustomerSubscription } from "@/types"
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const CATEGORY_LABELS: Record<PriceCategory, string> = {
-  clothing: "Clothing",
-  bedding: "Bedding",
-  household: "Household",
-  specialty: "Specialty",
-}
 
 const BILLING_SUFFIX: Record<string, string> = {
   weekly: "/week",
   monthly: "/month",
-  quarterly: "/quarter",
-  annually: "/year",
+  yearly: "/year",
 }
 
 function formatNaira(amount: number): string {
@@ -42,7 +37,6 @@ function getSubscriptionEndDate(start: Date, cycle: string): Date {
   const end = new Date(start)
   if (cycle === "weekly") end.setDate(end.getDate() + 7)
   else if (cycle === "monthly") end.setMonth(end.getMonth() + 1)
-  else if (cycle === "quarterly") end.setMonth(end.getMonth() + 3)
   else end.setFullYear(end.getFullYear() + 1)
   return end
 }
@@ -76,7 +70,11 @@ export default function StartSubscriptionDialog({
   prefilledCustomer,
   onSubscriptionCreated,
 }: Props) {
-  const subscriptionPlans = useStore((s) => s.subscriptionPlans)
+  const { data: business } = useGetMyBusinessQuery()
+  const businessId = business?.id
+  const { data: plansData, isLoading: plansLoading } = useGetPlansForBusinessQuery(businessId ?? "", {
+    skip: !businessId || !open,
+  })
   const addCustomerSubscription = useStore((s) => s.addCustomerSubscription)
 
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
@@ -96,8 +94,8 @@ export default function StartSubscriptionDialog({
   }, [open])
 
   const activePlans = useMemo(
-    () => subscriptionPlans.filter((p) => p.isActive),
-    [subscriptionPlans]
+    () => (plansData ?? []).filter((p) => p.is_active),
+    [plansData]
   )
 
   const selectedPlan = selectedPlanId
@@ -128,7 +126,7 @@ export default function StartSubscriptionDialog({
     const phone = prefilledCustomer?.phone.trim() || localPhone.trim()
 
     const now = new Date()
-    const endDate = getSubscriptionEndDate(now, selectedPlan.billingCycle)
+    const endDate = getSubscriptionEndDate(now, selectedPlan.billing_cycle)
     const nowIso = now.toISOString()
     const endIso = endDate.toISOString()
 
@@ -144,7 +142,7 @@ export default function StartSubscriptionDialog({
       // a pending state and activate only after payment webhook confirmation.
       status: "active",
       creditsUsed: 0,
-      creditsTotal: selectedPlan.credits,
+      creditsTotal: selectedPlan.item_cap,
       startDate: nowIso,
       endDate: endIso,
       nextBillingDate: endIso,
@@ -155,7 +153,7 @@ export default function StartSubscriptionDialog({
     onOpenChange(false)
 
     const firstName = name.split(" ")[0]
-    const planDesc = `${selectedPlan.name} — ${formatNaira(selectedPlan.price)}${BILLING_SUFFIX[selectedPlan.billingCycle] ?? "/month"}`
+    const planDesc = `${selectedPlan.name} — ${formatNaira(selectedPlan.price)}${BILLING_SUFFIX[selectedPlan.billing_cycle] ?? "/month"}`
 
     if (paymentMethod === "link") {
       toast.success("Payment link sent — subscription will activate once paid", {
@@ -224,7 +222,19 @@ export default function StartSubscriptionDialog({
           )}
 
           {/* Plan selector cards */}
-          {activePlans.length === 0 ? (
+          {plansLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="rounded-lg border border-border p-4">
+                  <div className="flex items-baseline justify-between">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                  <Skeleton className="mt-3 h-3 w-40" />
+                </div>
+              ))}
+            </div>
+          ) : activePlans.length === 0 ? (
             <p className="py-4 text-center text-sm text-muted-foreground">
               No active plans available. Add plans in Subscriptions.
             </p>
@@ -248,21 +258,21 @@ export default function StartSubscriptionDialog({
                   <span className="text-sm font-medium tabular-nums text-foreground">
                     {formatNaira(plan.price)}
                     <span className="font-normal text-muted-foreground">
-                      {BILLING_SUFFIX[plan.billingCycle] ?? "/month"}
+                      {BILLING_SUFFIX[plan.billing_cycle] ?? "/month"}
                     </span>
                   </span>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <span className="text-xs text-muted-foreground">
-                    {plan.credits} items
+                    {plan.item_cap} items
                   </span>
                   <span className="text-xs text-muted-foreground">·</span>
-                  {plan.categories.map((cat) => (
+                  {plan.eligible_categories.map((cat) => (
                     <span
                       key={cat}
                       className="rounded-md bg-muted px-1.5 py-0.5 text-xs text-muted-foreground"
                     >
-                      {CATEGORY_LABELS[cat]}
+                      {cat}
                     </span>
                   ))}
                 </div>
@@ -341,7 +351,7 @@ export default function StartSubscriptionDialog({
               This will subscribe {customerLabel} to{" "}
               <span className="font-medium text-foreground">{selectedPlan.name}</span>{" "}
               for {formatNaira(selectedPlan.price)}
-              {BILLING_SUFFIX[selectedPlan.billingCycle] ?? "/month"}
+              {BILLING_SUFFIX[selectedPlan.billing_cycle] ?? "/month"}
             </p>
           )}
         </div>

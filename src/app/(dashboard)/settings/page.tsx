@@ -7,7 +7,8 @@ import { toast } from "sonner"
 import { useStore } from "@/lib/mock/store"
 import type { BusinessProfileSettings } from "@/lib/mock/store"
 import type { OperatingDay } from "@/types"
-import { useKybStatus } from "@/lib/hooks/useKybStatus"
+import { useGetMyBusinessQuery } from "@/redux/api/businessApi"
+import { toKybStatus } from "@/lib/kybStatus"
 import { cn } from "@/lib/utils"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -144,7 +145,8 @@ function VerificationTab({
 
 export default function SettingsPage() {
   const router = useRouter()
-  const { kybStatus } = useKybStatus()
+  const { data: business, isLoading: businessLoading } = useGetMyBusinessQuery()
+  const kybStatus = toKybStatus(business?.current_kyb_status, businessLoading)
 
   const businessProfile = useStore((s) => s.businessProfile)
   const setBusinessProfile = useStore((s) => s.setBusinessProfile)
@@ -161,6 +163,15 @@ export default function SettingsPage() {
   const [operatingHours, setOperatingHours] = useState<Record<string, OperatingDay>>(
     businessProfile.operatingHours
   )
+
+  // Seed name/address from the real business once it loads, rather than in an
+  // effect — avoids an extra render pass (see react-hooks/set-state-in-effect).
+  const [hasPrefilledBusiness, setHasPrefilledBusiness] = useState(false)
+  if (business && !hasPrefilledBusiness) {
+    setHasPrefilledBusiness(true)
+    setProfileName(business.name)
+    setProfileAddress(business.address)
+  }
 
   function handleSaveProfile() {
     const updates: Partial<BusinessProfileSettings> = {

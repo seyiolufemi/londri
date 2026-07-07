@@ -2,17 +2,21 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import Link from "next/link"
-import { ArrowRight, CheckCircle2, Loader2, MessageCircle } from "lucide-react"
+import { Loader2 } from "lucide-react"
+import { toast } from "sonner"
 import Navbar from "@/components/customer/Navbar"
 import { useStore } from "@/lib/mock/store"
-import { discoveryBusinesses, priceListItems } from "@/lib/mock/data"
+import { useGetBusinessByIdQuery } from "@/redux/api/businessApi"
+import { useGetItemsQuery } from "@/redux/api/catalogApi"
+import { useCreateCustomerOrderMutation, type CreateOrderRequest } from "@/redux/api/ordersApi"
+import { normalizeNigerianPhone } from "@/lib/phone"
+import { apiError } from "@/lib/apiError"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Select,
   SelectContent,
@@ -21,14 +25,21 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-type Step = "info" | "payment" | "confirmation"
-type PaymentMethod = "card" | "bank_transfer" | "ussd"
-
 const PICKUP_WINDOWS = [
   { value: "morning", label: "Morning (8am–12pm)" },
   { value: "afternoon", label: "Afternoon (12pm–4pm)" },
   { value: "evening", label: "Evening (4pm–8pm)" },
 ]
+
+// Anchor hour used to turn the selected window into the scheduled_pickup_at
+// timestamp the real API expects — there's no exact-time picker in this form.
+const PICKUP_WINDOW_HOURS: Record<string, number> = { morning: 9, afternoon: 13, evening: 17 }
+
+function buildScheduledPickupAt(window: string): string {
+  const d = new Date()
+  d.setHours(PICKUP_WINDOW_HOURS[window] ?? 9, 0, 0, 0)
+  return d.toISOString()
+}
 
 interface GuestInfoErrors {
   fullName?: string
@@ -47,7 +58,10 @@ export default function CheckoutPage() {
   const router = useRouter()
   const businessId = params.businessId
 
-  const business = discoveryBusinesses.find((b) => b.id === businessId)
+  const { data: business, isLoading: businessLoading, isError: businessError } = useGetBusinessByIdQuery(businessId)
+  const { data: itemsData, isLoading: itemsLoading } = useGetItemsQuery({ businessId })
+  const items = useMemo(() => itemsData ?? [], [itemsData])
+
   const cart = useStore((s) => s.cart)
   const clearBusinessCart = useStore((s) => s.clearBusinessCart)
 
@@ -57,32 +71,35 @@ export default function CheckoutPage() {
     () =>
       cartItems
         .map((i) => {
-          const item = priceListItems.find((p) => p.id === i.priceListItemId)
+          const item = items.find((p) => p.id === i.priceListItemId)
           if (!item) return null
           return { name: item.name, quantity: i.quantity, lineTotal: item.price * i.quantity }
         })
         .filter((r): r is { name: string; quantity: number; lineTotal: number } => r !== null),
-    [cartItems]
+    [cartItems, items]
   )
   const total = rows.reduce((sum, r) => sum + r.lineTotal, 0)
 
-  const [step, setStep] = useState<Step>("info")
+  const isLoading = businessLoading || itemsLoading
 
-  // Guard: nothing to check out. Skipped once we reach confirmation, since
-  // that step intentionally clears the cart as part of completing checkout.
+  // Guard: nothing to check out (real backend confirmed business doesn't
+  // exist, or the cart is empty) — wait for data to load before deciding.
   useEffect(() => {
-    if ((!business || cartItems.length === 0) && step !== "confirmation") {
+    if (isLoading) return
+    if (businessError || !business || cartItems.length === 0) {
       router.replace("/")
     }
-  }, [business, cartItems.length, step, router])
+  }, [isLoading, businessError, business, cartItems.length, router])
 
-  // ── Step 1: Guest info ──
+  // ── Guest info ──
   const [fullName, setFullName] = useState("")
   const [whatsapp, setWhatsapp] = useState("")
   const [email, setEmail] = useState("")
   const [pickupAddress, setPickupAddress] = useState("")
   const [pickupTime, setPickupTime] = useState("")
   const [infoErrors, setInfoErrors] = useState<GuestInfoErrors>({})
+
+  const [createCustomerOrder, { isLoading: isSubmitting }] = useCreateCustomerOrderMutation()
 
   function validateInfo(): boolean {
     const next: GuestInfoErrors = {}
@@ -96,274 +113,186 @@ export default function CheckoutPage() {
     return Object.keys(next).length === 0
   }
 
-  function handleContinueToPayment() {
+  async function handleCheckout() {
     if (!validateInfo()) return
-    setStep("payment")
+
+    const body: CreateOrderRequest = {
+      business_id: businessId,
+      items: cartItems.map((i) => ({ price_list_item_id: i.priceListItemId, quantity: i.quantity })),
+      channel: "online_booking",
+      customer_name: fullName.trim(),
+      customer_email: email.trim(),
+      customer_whatsapp: normalizeNigerianPhone(whatsapp),
+      to_be_delivered: true,
+      delivery_address: pickupAddress.trim(),
+      scheduled_pickup_at: buildScheduledPickupAt(pickupTime),
+    }
+
+    try {
+      const { checkout_link } = await createCustomerOrder(body).unwrap()
+      clearBusinessCart(businessId)
+      if (checkout_link) {
+        window.location.href = checkout_link
+      } else {
+        toast.success("Order placed successfully")
+        router.push("/")
+      }
+    } catch (error) {
+      toast.error(apiError(error, "Couldn't place your order"))
+    }
   }
 
-  // ── Step 2: Payment ──
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card")
-  const [cardNumber, setCardNumber] = useState("")
-  const [isPaying, setIsPaying] = useState(false)
-  const [reference, setReference] = useState("")
-
-  function handlePay() {
-    setIsPaying(true)
-    setTimeout(() => {
-      const randomRef = Math.floor(100000 + Math.random() * 900000).toString()
-      setReference(`LDR-${randomRef}`)
-      clearBusinessCart(businessId)
-      setIsPaying(false)
-      setStep("confirmation")
-    }, 1500)
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="mx-auto max-w-xl px-6 py-10">
+          <Skeleton className="h-6 w-56" />
+          <Skeleton className="mt-6 h-24 w-full rounded-lg" />
+          <Skeleton className="mt-6 h-64 w-full rounded-lg" />
+        </div>
+      </div>
+    )
   }
 
   if (!business) return null
-
-  const whatsappDigits = business.whatsappNumber.replace(/\D/g, "")
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
       <div className="mx-auto max-w-xl px-6 py-10">
-        {step === "info" && (
-          <>
-            <h1 className="font-[family-name:var(--font-jakarta)] text-xl font-semibold text-foreground">
-              Checkout with {business.name}
-            </h1>
+        <h1 className="font-[family-name:var(--font-jakarta)] text-xl font-semibold text-foreground">
+          Checkout with {business.name}
+        </h1>
 
-            {/* Order summary */}
-            <div className="mt-6 rounded-lg bg-muted/30 p-4">
-              {rows.map((row) => (
-                <div key={row.name} className="flex items-center justify-between py-1 text-sm">
-                  <span className="text-foreground">
-                    {row.name} <span className="text-muted-foreground">× {row.quantity}</span>
-                  </span>
-                  <span className="tabular-nums text-foreground">{formatNaira(row.lineTotal)}</span>
-                </div>
-              ))}
-              <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-sm font-semibold">
-                <span className="text-foreground">Total</span>
-                <span className="tabular-nums text-foreground">{formatNaira(total)}</span>
-              </div>
+        {/* Order summary */}
+        <div className="mt-6 rounded-lg bg-muted/30 p-4">
+          {rows.map((row) => (
+            <div key={row.name} className="flex items-center justify-between py-1 text-sm">
+              <span className="text-foreground">
+                {row.name} <span className="text-muted-foreground">× {row.quantity}</span>
+              </span>
+              <span className="tabular-nums text-foreground">{formatNaira(row.lineTotal)}</span>
             </div>
-
-            {/* Form */}
-            <div className="mt-6 flex flex-col gap-4">
-              <div>
-                <Label htmlFor="full-name" className="mb-1.5 block text-sm">
-                  Full name
-                </Label>
-                <Input
-                  id="full-name"
-                  placeholder="Your full name"
-                  value={fullName}
-                  onChange={(e) => {
-                    setFullName(e.target.value)
-                    if (infoErrors.fullName) setInfoErrors((er) => ({ ...er, fullName: undefined }))
-                  }}
-                  className={cn(infoErrors.fullName && "border-destructive")}
-                />
-                {infoErrors.fullName && (
-                  <p className="mt-1 text-xs text-destructive">{infoErrors.fullName}</p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="whatsapp" className="mb-1.5 block text-sm">
-                  WhatsApp number
-                </Label>
-                <Input
-                  id="whatsapp"
-                  placeholder="+234 801 234 5678"
-                  value={whatsapp}
-                  onChange={(e) => {
-                    setWhatsapp(e.target.value)
-                    if (infoErrors.whatsapp) setInfoErrors((er) => ({ ...er, whatsapp: undefined }))
-                  }}
-                  className={cn(infoErrors.whatsapp && "border-destructive")}
-                />
-                {infoErrors.whatsapp && (
-                  <p className="mt-1 text-xs text-destructive">{infoErrors.whatsapp}</p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="email" className="mb-1.5 block text-sm">
-                  Email
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@email.com"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value)
-                    if (infoErrors.email) setInfoErrors((er) => ({ ...er, email: undefined }))
-                  }}
-                  className={cn(infoErrors.email && "border-destructive")}
-                />
-                {infoErrors.email && (
-                  <p className="mt-1 text-xs text-destructive">{infoErrors.email}</p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="pickup-address" className="mb-1.5 block text-sm">
-                  Pickup address
-                </Label>
-                <Textarea
-                  id="pickup-address"
-                  placeholder="Where should we pick up your items?"
-                  value={pickupAddress}
-                  onChange={(e) => {
-                    setPickupAddress(e.target.value)
-                    if (infoErrors.pickupAddress)
-                      setInfoErrors((er) => ({ ...er, pickupAddress: undefined }))
-                  }}
-                  rows={2}
-                  className={cn(infoErrors.pickupAddress && "border-destructive")}
-                />
-                {infoErrors.pickupAddress && (
-                  <p className="mt-1 text-xs text-destructive">{infoErrors.pickupAddress}</p>
-                )}
-              </div>
-
-              <div>
-                <Label className="mb-1.5 block text-sm">Preferred pickup time</Label>
-                <Select
-                  value={pickupTime}
-                  onValueChange={(v) => {
-                    setPickupTime(v)
-                    if (infoErrors.pickupTime) setInfoErrors((er) => ({ ...er, pickupTime: undefined }))
-                  }}
-                >
-                  <SelectTrigger className={cn("w-full", infoErrors.pickupTime && "border-destructive")}>
-                    <SelectValue placeholder="Select a time window" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PICKUP_WINDOWS.map((w) => (
-                      <SelectItem key={w.value} value={w.value}>
-                        {w.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {infoErrors.pickupTime && (
-                  <p className="mt-1 text-xs text-destructive">{infoErrors.pickupTime}</p>
-                )}
-              </div>
-            </div>
-
-            <Button className="mt-6 w-full" onClick={handleContinueToPayment}>
-              Continue to Payment
-            </Button>
-          </>
-        )}
-
-        {step === "payment" && (
-          <>
-            <h1 className="text-xl font-semibold text-foreground">Payment</h1>
-
-            <div className="mt-4 flex items-center justify-between rounded-lg bg-muted/30 p-4 text-sm font-semibold">
-              <span className="text-foreground">Total</span>
-              <span className="tabular-nums text-foreground">{formatNaira(total)}</span>
-            </div>
-
-            <RadioGroup
-              value={paymentMethod}
-              onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}
-              className="mt-6 flex flex-col gap-3"
-            >
-              {(
-                [
-                  { value: "card", label: "Card" },
-                  { value: "bank_transfer", label: "Bank Transfer" },
-                  { value: "ussd", label: "USSD" },
-                ] as const
-              ).map((opt) => (
-                <label
-                  key={opt.value}
-                  htmlFor={`pm-${opt.value}`}
-                  className={cn(
-                    "flex cursor-pointer items-center gap-3 rounded-lg border p-4 transition-colors",
-                    paymentMethod === opt.value
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:bg-muted/50"
-                  )}
-                >
-                  <RadioGroupItem value={opt.value} id={`pm-${opt.value}`} />
-                  <span className="text-sm font-medium text-foreground">{opt.label}</span>
-                </label>
-              ))}
-            </RadioGroup>
-
-            {paymentMethod === "card" && (
-              <div className="mt-4">
-                <Label htmlFor="card-number" className="mb-1.5 block text-sm">
-                  Card number
-                </Label>
-                <Input
-                  id="card-number"
-                  placeholder="4242 4242 4242 4242"
-                  value={cardNumber}
-                  onChange={(e) => setCardNumber(e.target.value)}
-                />
-              </div>
-            )}
-
-            <Button className="mt-6 w-full" onClick={handlePay} disabled={isPaying}>
-              {isPaying && <Loader2 className="size-4 animate-spin" />}
-              Pay {formatNaira(total)}
-            </Button>
-          </>
-        )}
-
-        {step === "confirmation" && (
-          <div className="flex flex-col items-center py-8 text-center">
-            <div className="flex size-16 items-center justify-center rounded-full bg-primary/10">
-              <CheckCircle2 className="size-10 text-primary" />
-            </div>
-
-            <h1 className="mt-4 font-[family-name:var(--font-jakarta)] text-2xl font-bold text-foreground">
-              Order confirmed!
-            </h1>
-            <p className="mt-2 text-sm text-muted-foreground">Order reference: {reference}</p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              A confirmation email has been sent to {email}
-            </p>
-
-            <Button className="mt-6" asChild>
-              <a
-                href={`https://wa.me/${whatsappDigits}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <MessageCircle className="mr-1.5 size-4" />
-                Message {business.name} on WhatsApp
-              </a>
-            </Button>
-
-            <div className="mt-8 w-full border-t border-border pt-6">
-              <p className="text-sm text-muted-foreground">Want to track this order?</p>
-              <Link
-                href="/account/login"
-                className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-              >
-                Sign in to view your orders
-                <ArrowRight className="size-4" />
-              </Link>
-            </div>
-
-            <Link
-              href="/"
-              className="mt-6 cursor-pointer text-sm text-muted-foreground hover:text-foreground"
-            >
-              Back to home
-            </Link>
+          ))}
+          <div className="mt-2 flex items-center justify-between border-t border-border pt-2 text-sm font-semibold">
+            <span className="text-foreground">Total</span>
+            <span className="tabular-nums text-foreground">{formatNaira(total)}</span>
           </div>
-        )}
+        </div>
+
+        {/* Form */}
+        <div className="mt-6 flex flex-col gap-4">
+          <div>
+            <Label htmlFor="full-name" className="mb-1.5 block text-sm">
+              Full name
+            </Label>
+            <Input
+              id="full-name"
+              placeholder="Your full name"
+              value={fullName}
+              onChange={(e) => {
+                setFullName(e.target.value)
+                if (infoErrors.fullName) setInfoErrors((er) => ({ ...er, fullName: undefined }))
+              }}
+              className={cn(infoErrors.fullName && "border-destructive")}
+            />
+            {infoErrors.fullName && (
+              <p className="mt-1 text-xs text-destructive">{infoErrors.fullName}</p>
+            )}
+          </div>
+
+          <div>
+            <Label htmlFor="whatsapp" className="mb-1.5 block text-sm">
+              WhatsApp number
+            </Label>
+            <Input
+              id="whatsapp"
+              placeholder="+234 801 234 5678"
+              value={whatsapp}
+              onChange={(e) => {
+                setWhatsapp(e.target.value)
+                if (infoErrors.whatsapp) setInfoErrors((er) => ({ ...er, whatsapp: undefined }))
+              }}
+              className={cn(infoErrors.whatsapp && "border-destructive")}
+            />
+            {infoErrors.whatsapp && (
+              <p className="mt-1 text-xs text-destructive">{infoErrors.whatsapp}</p>
+            )}
+          </div>
+
+          <div>
+            <Label htmlFor="email" className="mb-1.5 block text-sm">
+              Email
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="you@email.com"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                if (infoErrors.email) setInfoErrors((er) => ({ ...er, email: undefined }))
+              }}
+              className={cn(infoErrors.email && "border-destructive")}
+            />
+            {infoErrors.email && (
+              <p className="mt-1 text-xs text-destructive">{infoErrors.email}</p>
+            )}
+          </div>
+
+          <div>
+            <Label htmlFor="pickup-address" className="mb-1.5 block text-sm">
+              Pickup &amp; delivery address
+            </Label>
+            <Textarea
+              id="pickup-address"
+              placeholder="Where should we pick up and deliver your items?"
+              value={pickupAddress}
+              onChange={(e) => {
+                setPickupAddress(e.target.value)
+                if (infoErrors.pickupAddress)
+                  setInfoErrors((er) => ({ ...er, pickupAddress: undefined }))
+              }}
+              rows={2}
+              className={cn(infoErrors.pickupAddress && "border-destructive")}
+            />
+            {infoErrors.pickupAddress && (
+              <p className="mt-1 text-xs text-destructive">{infoErrors.pickupAddress}</p>
+            )}
+          </div>
+
+          <div>
+            <Label className="mb-1.5 block text-sm">Preferred pickup time</Label>
+            <Select
+              value={pickupTime}
+              onValueChange={(v) => {
+                setPickupTime(v)
+                if (infoErrors.pickupTime) setInfoErrors((er) => ({ ...er, pickupTime: undefined }))
+              }}
+            >
+              <SelectTrigger className={cn("w-full", infoErrors.pickupTime && "border-destructive")}>
+                <SelectValue placeholder="Select a time window" />
+              </SelectTrigger>
+              <SelectContent>
+                {PICKUP_WINDOWS.map((w) => (
+                  <SelectItem key={w.value} value={w.value}>
+                    {w.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {infoErrors.pickupTime && (
+              <p className="mt-1 text-xs text-destructive">{infoErrors.pickupTime}</p>
+            )}
+          </div>
+        </div>
+
+        <Button className="mt-6 w-full" onClick={handleCheckout} disabled={isSubmitting}>
+          {isSubmitting && <Loader2 className="size-4 animate-spin" />}
+          Continue to Payment
+        </Button>
       </div>
     </div>
   )

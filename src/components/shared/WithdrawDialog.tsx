@@ -1,13 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { toast } from "sonner"
 import { Loader2, CheckCircle2 } from "lucide-react"
 import { useStore } from "@/lib/mock/store"
+import { useListTransactionsQuery } from "@/redux/api/transactionsApi"
 import type { Payout } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Dialog,
   DialogContent,
@@ -35,7 +37,14 @@ function formatNaira(amount: number): string {
 }
 
 export default function WithdrawDialog({ open, onOpenChange }: WithdrawDialogProps) {
-  const availableBalance = useStore((s) => s.availableBalance)
+  // Real balance — same query/cache the Overview and Transactions pages already use.
+  const { data: transactionsData, isLoading: balanceLoading } = useListTransactionsQuery(
+    { limit: 1 },
+    { skip: !open }
+  )
+  const availableBalance = transactionsData?.available_balance ?? 0
+
+  // Bank account details have no real GET endpoint yet (only lookup/save) — still mock.
   const businessBankName = useStore((s) => s.businessBankName)
   const businessAccountNumber = useStore((s) => s.businessAccountNumber)
   const businessAccountName = useStore((s) => s.businessAccountName)
@@ -47,17 +56,29 @@ export default function WithdrawDialog({ open, onOpenChange }: WithdrawDialogPro
   const [amount, setAmount] = useState("")
   const [error, setError] = useState("")
   const [committed, setCommitted] = useState<Committed | null>(null)
+  const [hasPrefilled, setHasPrefilled] = useState(false)
 
   const last4 = businessAccountNumber.slice(-4)
 
-  useEffect(() => {
+  // Reset the form each time the dialog transitions from closed to open, rather
+  // than in an effect (see react-hooks/set-state-in-effect).
+  const [wasOpen, setWasOpen] = useState(false)
+  if (open !== wasOpen) {
+    setWasOpen(open)
     if (open) {
       setPhase("form")
-      setAmount(String(availableBalance))
+      setAmount("")
       setError("")
       setCommitted(null)
+      setHasPrefilled(false)
     }
-  }, [open]) // availableBalance read at open time; omitting from deps prevents loading-state reset
+  }
+
+  // Prefill the amount once the real balance has loaded during this open session.
+  if (open && !balanceLoading && !hasPrefilled) {
+    setHasPrefilled(true)
+    setAmount(String(availableBalance))
+  }
 
   const amountNum = parseFloat(amount) || 0
 
@@ -143,9 +164,13 @@ export default function WithdrawDialog({ open, onOpenChange }: WithdrawDialogPro
             <div className="space-y-5">
               <div>
                 <p className="text-sm text-muted-foreground">Available Balance</p>
-                <p className="font-[family-name:var(--font-jakarta)] text-2xl font-bold tabular-nums text-foreground">
-                  {formatNaira(availableBalance)}
-                </p>
+                {balanceLoading ? (
+                  <Skeleton className="mt-1 h-8 w-28" />
+                ) : (
+                  <p className="font-[family-name:var(--font-jakarta)] text-2xl font-bold tabular-nums text-foreground">
+                    {formatNaira(availableBalance)}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -171,7 +196,7 @@ export default function WithdrawDialog({ open, onOpenChange }: WithdrawDialogPro
                 </p>
               </div>
 
-              <Button className="w-full" onClick={handleConfirm}>
+              <Button className="w-full" onClick={handleConfirm} disabled={balanceLoading}>
                 {buttonLabel}
               </Button>
             </div>

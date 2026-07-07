@@ -4,7 +4,8 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { ChevronDown, Minus, Plus, ShoppingCart, X } from "lucide-react"
 import { useStore } from "@/lib/mock/store"
-import { discoveryBusinesses } from "@/lib/mock/data"
+import { useGetBusinessByIdQuery } from "@/redux/api/businessApi"
+import { useGetItemsQuery } from "@/redux/api/catalogApi"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -26,17 +27,17 @@ function BusinessCartSection({ businessId }: BusinessCartSectionProps) {
   const router = useRouter()
   const [expanded, setExpanded] = useState(true)
   const items = useStore((s) => s.cart[businessId]) ?? []
-  const priceListItems = useStore((s) => s.priceListItems)
   const updateCartItemQuantity = useStore((s) => s.updateCartItemQuantity)
   const removeFromCart = useStore((s) => s.removeFromCart)
   const setCartSheetOpen = useStore((s) => s.setCartSheetOpen)
 
-  const business = discoveryBusinesses.find((b) => b.id === businessId)
-  const businessName = business?.name ?? "Unknown business"
+  const { data: business } = useGetBusinessByIdQuery(businessId)
+  const { data: priceListItems } = useGetItemsQuery({ businessId })
+  const businessName = business?.name ?? "Loading…"
 
   const rows = items
     .map((item) => {
-      const priceListItem = priceListItems.find((p) => p.id === item.priceListItemId)
+      const priceListItem = (priceListItems ?? []).find((p) => p.id === item.priceListItemId)
       if (!priceListItem) return null
       return { priceListItemId: item.priceListItemId, quantity: item.quantity, name: priceListItem.name, price: priceListItem.price }
     })

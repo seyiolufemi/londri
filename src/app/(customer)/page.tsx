@@ -8,9 +8,29 @@ import HeroSearch from "@/components/customer/HeroSearch"
 import BusinessCard from "@/components/customer/BusinessCard"
 import Footer from "@/components/customer/Footer"
 import { Button } from "@/components/ui/button"
-import { discoveryBusinesses } from "@/lib/mock/data"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useGetDiscoverableBusinessesQuery } from "@/redux/api/businessApi"
+import { useGeolocation } from "@/lib/hooks/useGeolocation"
+
+function BusinessCardSkeleton() {
+  return (
+    <div className="p-4 text-center">
+      <Skeleton className="mx-auto h-48 w-full rounded-lg sm:h-52 md:h-56" />
+      <div className="mt-6 flex flex-col items-center gap-2">
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-4 w-20" />
+      </div>
+    </div>
+  )
+}
 
 export default function CustomerLandingPage() {
+  // Backend already only returns discoverable, verified businesses here.
+  const { data: businesses, isLoading } = useGetDiscoverableBusinessesQuery()
+  const discoverable = businesses ?? []
+  const { coords: customerCoords } = useGeolocation()
+
   return (
     <div className="min-h-screen overflow-x-clip bg-background">
       <Navbar />
@@ -139,9 +159,17 @@ export default function CustomerLandingPage() {
         </h2>
 
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {discoveryBusinesses.slice(0, 6).map((business, index) => (
-            <BusinessCard key={business.id} business={business} index={index} />
-          ))}
+          {isLoading ? (
+            Array.from({ length: 6 }).map((_, i) => <BusinessCardSkeleton key={i} />)
+          ) : discoverable.length === 0 ? (
+            <p className="col-span-full text-center text-sm text-muted-foreground">
+              No laundries available yet — check back soon.
+            </p>
+          ) : (
+            discoverable.slice(0, 6).map((business, index) => (
+              <BusinessCard key={business.id} business={business} index={index} customerCoords={customerCoords} />
+            ))
+          )}
         </div>
 
         <div className="mt-10 flex justify-center">

@@ -16,15 +16,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { discoveryBusinesses } from "@/lib/mock/data"
+import { useGetDiscoverableBusinessesQuery } from "@/redux/api/businessApi"
+import { ALL_SERVICE_TYPES, SERVICE_TYPE_LABELS, getDistanceKm, pickCheapestPrice, pickServiceTypes } from "@/components/customer/businessDisplay"
+import { useGeolocation } from "@/lib/hooks/useGeolocation"
+import { Skeleton } from "@/components/ui/skeleton"
 import type { ServiceType } from "@/types"
-
-const ALL_SERVICE_TYPES: ServiceType[] = ["wash", "dry_clean", "iron"]
-const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
-  wash: "Wash",
-  dry_clean: "Dry Clean",
-  iron: "Iron",
-}
 
 type SortOption = "nearest" | "price_asc" | "price_desc"
 
@@ -35,6 +31,19 @@ const SORT_LABELS: Record<SortOption, string> = {
 }
 
 const PAGE_SIZE = 9
+
+function BusinessCardSkeleton() {
+  return (
+    <div className="p-4 text-center">
+      <Skeleton className="mx-auto h-48 w-full rounded-lg sm:h-52 md:h-56" />
+      <div className="mt-6 flex flex-col items-center gap-2">
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-4 w-20" />
+      </div>
+    </div>
+  )
+}
 
 export default function DiscoverPage() {
   return (
@@ -48,33 +57,54 @@ function DiscoverPageContent() {
   const searchParams = useSearchParams()
   const [search, setSearch] = useState(() => searchParams.get("q") ?? "")
   const [serviceTypeFilters, setServiceTypeFilters] = useState<ServiceType[]>([])
+  const [locationFilter, setLocationFilter] = useState("all")
   const [sort, setSort] = useState<SortOption>("nearest")
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [loadingMore, setLoadingMore] = useState(false)
   const sentinelRef = useRef<HTMLDivElement>(null)
 
+  // Backend already only returns discoverable, verified businesses here.
+  const { data: businesses, isLoading } = useGetDiscoverableBusinessesQuery()
+  const discoverable = useMemo(
+    () => businesses ?? [],
+    [businesses]
+  )
+
+  const { coords: customerCoords } = useGeolocation()
+
+  const availableLocations = useMemo(
+    () => Array.from(new Set(discoverable.map((b) => b.city))).sort(),
+    [discoverable]
+  )
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    const result = discoveryBusinesses.filter((b) => {
+    const result = discoverable.filter((b) => {
       const matchesSearch =
-        !q || b.name.toLowerCase().includes(q) || b.address.toLowerCase().includes(q)
+        !q ||
+        b.name.toLowerCase().includes(q) ||
+        b.address.toLowerCase().includes(q) ||
+        b.city.toLowerCase().includes(q) ||
+        b.state.toLowerCase().includes(q) ||
+        pickServiceTypes(b.id).some((t) => SERVICE_TYPE_LABELS[t].toLowerCase().includes(q))
+      const matchesLocation = locationFilter === "all" || b.city === locationFilter
       const matchesServiceType =
         serviceTypeFilters.length === 0 ||
-        serviceTypeFilters.some((t) => b.serviceTypes.includes(t))
-      return matchesSearch && matchesServiceType
+        serviceTypeFilters.some((t) => pickServiceTypes(b.id).includes(t))
+      return matchesSearch && matchesLocation && matchesServiceType
     })
 
     return [...result].sort((a, b) => {
-      if (sort === "price_asc") return a.cheapestPrice - b.cheapestPrice
-      if (sort === "price_desc") return b.cheapestPrice - a.cheapestPrice
-      return a.distanceKm - b.distanceKm
+      if (sort === "price_asc") return pickCheapestPrice(a.id) - pickCheapestPrice(b.id)
+      if (sort === "price_desc") return pickCheapestPrice(b.id) - pickCheapestPrice(a.id)
+      return getDistanceKm(a, customerCoords) - getDistanceKm(b, customerCoords)
     })
-  }, [search, serviceTypeFilters, sort])
+  }, [discoverable, search, locationFilter, serviceTypeFilters, sort, customerCoords])
 
   // Filters/search/sort reset the loaded batch back to the first page. Adjusted
   // during render (React's recommended pattern for derived resets) rather than
   // in an effect, which would cause an extra render pass after every change.
-  const filterKey = `${search}|${sort}|${serviceTypeFilters.join(",")}`
+  const filterKey = `${search}|${locationFilter}|${sort}|${serviceTypeFilters.join(",")}`
   const [prevFilterKey, setPrevFilterKey] = useState(filterKey)
   if (filterKey !== prevFilterKey) {
     setPrevFilterKey(filterKey)
@@ -116,6 +146,13 @@ function DiscoverPageContent() {
   }
 
   const activeFilters: { key: string; label: string; onRemove: () => void }[] = []
+  if (locationFilter !== "all") {
+    activeFilters.push({
+      key: "location",
+      label: locationFilter,
+      onRemove: () => setLocationFilter("all"),
+    })
+  }
   serviceTypeFilters.forEach((type) => {
     activeFilters.push({
       key: `svc-${type}`,
@@ -159,6 +196,20 @@ function DiscoverPageContent() {
 
         {/* Filter bar */}
         <div className="mt-4 mb-6 flex flex-wrap gap-3">
+          <Select value={locationFilter} onValueChange={setLocationFilter}>
+            <SelectTrigger className="w-[170px]">
+              <SelectValue placeholder="All Locations" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Locations</SelectItem>
+              {availableLocations.map((city) => (
+                <SelectItem key={city} value={city}>
+                  {city}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className="justify-between font-normal">
@@ -223,13 +274,19 @@ function DiscoverPageContent() {
         <p className="mb-4 text-sm text-muted-foreground">
           {search.trim()
             ? `Showing ${filtered.length} results for "${search.trim()}"`
-            : serviceTypeFilters.length > 0
+            : serviceTypeFilters.length > 0 || locationFilter !== "all"
               ? `Showing ${filtered.length} results`
               : `Showing ${filtered.length} laundries near you`}
         </p>
 
         {/* Results */}
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+              <BusinessCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <SearchX className="size-8 text-muted-foreground" />
             <p className="mt-2 text-sm text-muted-foreground">No laundries found</p>
@@ -241,7 +298,12 @@ function DiscoverPageContent() {
           <>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {visibleBusinesses.map((business, index) => (
-                <BusinessCard key={business.id} business={business} index={index % PAGE_SIZE} />
+                <BusinessCard
+                  key={business.id}
+                  business={business}
+                  index={index % PAGE_SIZE}
+                  customerCoords={customerCoords}
+                />
               ))}
             </div>
 

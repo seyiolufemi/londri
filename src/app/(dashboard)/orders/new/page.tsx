@@ -2,130 +2,110 @@
 
 import { useState, useEffect, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
-import {
-  ChevronLeft,
-  Minus,
-  Plus,
-  X,
-  Landmark,
-  Link as LinkIcon,
-  Search,
-  Lock,
-} from "lucide-react"
+import { ChevronLeft, Loader2, Lock } from "lucide-react"
 import { toast } from "sonner"
 import { useStore } from "@/lib/mock/store"
-import { useKybStatus } from "@/lib/hooks/useKybStatus"
-import { cn } from "@/lib/utils"
+import { useGetMyBusinessQuery } from "@/redux/api/businessApi"
+import { useGetCategoriesQuery, useGetItemsQuery, useGetPlansForBusinessQuery } from "@/redux/api/catalogApi"
+import { useCreateOrderMutation, type CreateOrderRequest, type OrderChannel } from "@/redux/api/ordersApi"
+import { apiError } from "@/lib/apiError"
+import { normalizeNigerianPhone } from "@/lib/phone"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import type {
-  Order,
-  OrderItem,
-  OrderStatusEvent,
-  PriceListItem,
-  PriceCategory,
-  Transaction,
-} from "@/types"
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-type PaymentMethod = "counter" | "link"
-
-const CATEGORY_LABELS: Record<PriceCategory, string> = {
-  clothing: "Clothing",
-  bedding: "Bedding",
-  household: "Household",
-  specialty: "Specialty",
-}
-
-interface AddedItem {
-  priceListItemId: string
-  name: string
-  category: PriceCategory
-  quantity: number
-  unitPrice: number
-}
+import type { CustomerSubscription } from "@/types"
+import CustomerSection from "@/components/orders/new/CustomerSection"
+import ItemPickerSection, { type AddedItem } from "@/components/orders/new/ItemPickerSection"
+import PaymentMethodSection from "@/components/orders/new/PaymentMethodSection"
+import StartSubscriptionDialog from "@/components/shared/StartSubscriptionDialog"
+import { SUBSCRIPTION_DETECTION_ENABLED } from "@/lib/featureFlags"
 
 interface FormErrors {
   name?: string
   phone?: string
+  email?: string
   items?: string
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-function formatNaira(amount: number): string {
-  return "₦" + amount.toLocaleString("en-NG")
+// Matches the mock customer-subscription store's phone format — the phone
+// lookup itself is still mock (no real customer-subscription endpoint yet).
+function normalizePhone(raw: string): string {
+  const digits = raw.replace(/\D/g, "")
+  if (digits.startsWith("234") && digits.length >= 13) {
+    return "0" + digits.slice(3)
+  }
+  return digits
 }
-
-function generateReference(ordersLength: number): string {
-  const now = new Date()
-  const y = now.getFullYear()
-  const m = String(now.getMonth() + 1).padStart(2, "0")
-  const d = String(now.getDate()).padStart(2, "0")
-  const seq = String(ordersLength + 1).padStart(4, "0")
-  return `LDR-${y}${m}${d}-${seq}`
-}
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CreateOrderPage() {
   const router = useRouter()
-  const { kybStatus } = useKybStatus()
+  const { data: business } = useGetMyBusinessQuery()
+  const businessId = business?.id
 
-  const orders = useStore((s) => s.orders)
-  const priceListItems = useStore((s) => s.priceListItems)
-  const addOrder = useStore((s) => s.addOrder)
-  const addOrderStatusEvent = useStore((s) => s.addOrderStatusEvent)
-  const addTransaction = useStore((s) => s.addTransaction)
+  const { data: categoriesData } = useGetCategoriesQuery(businessId ?? "", { skip: !businessId })
+  const categories = useMemo(() => categoriesData ?? [], [categoriesData])
+  const categoryNameById = useMemo(
+    () => Object.fromEntries(categories.map((c) => [c.id, c.name])),
+    [categories]
+  )
+
+  const { data: itemsData, isLoading: itemsLoading } = useGetItemsQuery(
+    { businessId: businessId ?? "" },
+    { skip: !businessId }
+  )
+  const activeItems = useMemo(() => (itemsData ?? []).filter((i) => i.is_active), [itemsData])
+
+  const { data: plansData } = useGetPlansForBusinessQuery(businessId ?? "", { skip: !businessId })
+  const subscriptionPlans = useMemo(() => plansData ?? [], [plansData])
+
+  // Mock — no customer-subscription endpoint exists yet.
+  const customerSubscriptions = useStore((s) => s.customerSubscriptions)
+
+  const [createOrder, { isLoading: isCreating }] = useCreateOrderMutation()
 
   // ── Customer fields ──
   const [customerName, setCustomerName] = useState("")
   const [customerPhone, setCustomerPhone] = useState("")
   const [customerEmail, setCustomerEmail] = useState("")
 
+  // ── Subscription lookup ──
+  const [detectedSub, setDetectedSub] = useState<CustomerSubscription | null>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (!SUBSCRIPTION_DETECTION_ENABLED) return
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      const normalized = normalizePhone(customerPhone)
+      if (normalized.length < 10) {
+        setDetectedSub(null)
+        return
+      }
+      const match = customerSubscriptions.find(
+        (s) => s.status === "active" && normalizePhone(s.customerPhone) === normalized
+      )
+      setDetectedSub(match ?? null)
+    }, 400)
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [customerPhone, customerSubscriptions])
+
+  // ── Start Subscription dialog ──
+  const [subDialogOpen, setSubDialogOpen] = useState(false)
+
+  const phoneDigits = normalizePhone(customerPhone)
+  const showSubTrigger = SUBSCRIPTION_DETECTION_ENABLED && phoneDigits.length >= 10 && detectedSub === null
+
   // ── Items ──
   const [addedItems, setAddedItems] = useState<AddedItem[]>([])
-  const [itemSearch, setItemSearch] = useState("")
-  const [pickerOpen, setPickerOpen] = useState(false)
-  const pickerRef = useRef<HTMLDivElement>(null)
 
-  const activeItems = useMemo(
-    () => priceListItems.filter((i) => i.isActive),
-    [priceListItems]
-  )
-  const filteredItems = useMemo(() => {
-    const q = itemSearch.toLowerCase()
-    return q
-      ? activeItems.filter(
-          (i) =>
-            i.name.toLowerCase().includes(q) ||
-            i.category.toLowerCase().includes(q)
-        )
-      : activeItems
-  }, [activeItems, itemSearch])
-
-  // Close picker on outside click
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
-        setPickerOpen(false)
-      }
-    }
-    document.addEventListener("mousedown", handleClick)
-    return () => document.removeEventListener("mousedown", handleClick)
-  }, [])
-
-  function addItem(item: PriceListItem) {
+  function addItem(item: (typeof activeItems)[number]) {
     setAddedItems((prev) => {
       const existing = prev.find((i) => i.priceListItemId === item.id)
       if (existing) {
         return prev.map((i) =>
-          i.priceListItemId === item.id
-            ? { ...i, quantity: i.quantity + 1 }
-            : i
+          i.priceListItemId === item.id ? { ...i, quantity: i.quantity + 1 } : i
         )
       }
       return [
@@ -133,14 +113,12 @@ export default function CreateOrderPage() {
         {
           priceListItemId: item.id,
           name: item.name,
-          category: item.category,
+          categoryId: item.category_id,
           quantity: 1,
           unitPrice: item.price,
         },
       ]
     })
-    setItemSearch("")
-    setPickerOpen(false)
     if (errors.items) setErrors((e) => ({ ...e, items: undefined }))
   }
 
@@ -151,9 +129,7 @@ export default function CreateOrderPage() {
   function updateQuantity(id: string, delta: number) {
     setAddedItems((prev) =>
       prev.map((i) =>
-        i.priceListItemId === id
-          ? { ...i, quantity: Math.max(1, i.quantity + delta) }
-          : i
+        i.priceListItemId === id ? { ...i, quantity: Math.max(1, i.quantity + delta) } : i
       )
     )
   }
@@ -164,93 +140,77 @@ export default function CreateOrderPage() {
   )
 
   // ── Payment method ──
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("counter")
+  const detectedPlan = detectedSub
+    ? (subscriptionPlans.find((p) => p.id === detectedSub.planId) ?? null)
+    : null
+  const eligibleCategoryNames: string[] = detectedPlan?.eligible_categories ?? []
+  const remainingCredits = detectedSub ? detectedSub.creditsTotal - detectedSub.creditsUsed : 0
+  const subDisabled = detectedSub !== null && remainingCredits <= 0
+
+  const [paymentMethod, setPaymentMethod] = useState<OrderChannel>("walk_in")
+
+  // Default to the detected subscription (unless disabled) each time detection changes,
+  // adjusted during render rather than in an effect (see react-hooks/set-state-in-effect).
+  const [lastDetectedSubId, setLastDetectedSubId] = useState<string | null>(null)
+  const detectedSubId = detectedSub?.id ?? null
+  if (detectedSubId !== lastDetectedSubId) {
+    setLastDetectedSubId(detectedSubId)
+    setPaymentMethod(detectedSub && !subDisabled ? "subscription_fulfillment" : "walk_in")
+  }
 
   // ── Errors ──
   const [errors, setErrors] = useState<FormErrors>({})
 
   // ── Submit ──
-  function handleSubmit() {
+  async function handleSubmit() {
     const newErrors: FormErrors = {}
     if (!customerName.trim()) newErrors.name = "Customer name is required"
     if (!customerPhone.trim()) newErrors.phone = "WhatsApp number is required"
+    if (!customerEmail.trim()) newErrors.email = "Email is required"
+    else if (!EMAIL_PATTERN.test(customerEmail.trim())) newErrors.email = "Enter a valid email"
     if (addedItems.length === 0) newErrors.items = "Add at least one item"
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
       return
     }
+    if (!business) return
 
-    const now = new Date().toISOString()
-    const reference = generateReference(orders.length)
-    const orderId = `ord_${Date.now()}`
-
-    const items: OrderItem[] = addedItems.map((i) => ({
-      priceListItemId: i.priceListItemId,
-      name: i.name,
-      quantity: i.quantity,
-      unitPrice: i.unitPrice,
-      subtotal: i.unitPrice * i.quantity,
-    }))
-
-    const newOrder: Order = {
-      id: orderId,
-      reference,
-      customerId: `cust_${Date.now()}`,
-      customerName: customerName.trim(),
-      customerPhone: customerPhone.trim(),
-      items,
-      totalAmount,
-      status: "confirmed",
-      channel: "walk_in",
-      paymentStatus: paymentMethod === "counter" ? "paid" : "unpaid",
-      pickupAddress: "",
-      deliveryAddress: "",
-      pickupDate: now,
-      estimatedDeliveryDate: now,
-      actualDeliveryDate: null,
-      notes: null,
-      createdAt: now,
-      updatedAt: now,
+    const body: CreateOrderRequest = {
+      business_id: business.id,
+      items: addedItems.map((i) => ({ price_list_item_id: i.priceListItemId, quantity: i.quantity })),
+      channel: paymentMethod,
+      customer_name: customerName.trim(),
+      customer_email: customerEmail.trim(),
+      customer_whatsapp: normalizeNigerianPhone(customerPhone),
+      to_be_delivered: false,
     }
 
-    const confirmedEvent: OrderStatusEvent = {
-      id: `evt_${Date.now()}`,
-      orderId,
-      status: "confirmed",
-      note: "Order created at counter",
-      createdAt: now,
-      createdBy: "staff",
-    }
+    try {
+      const { transaction_reference_id, checkout_link } = await createOrder(body).unwrap()
 
-    addOrder(newOrder)
-    addOrderStatusEvent(confirmedEvent)
-
-    if (paymentMethod === "counter") {
-      const randomRef = Math.floor(100000 + Math.random() * 900000).toString()
-      const txn: Transaction = {
-        id: `txn_${Date.now()}`,
-        reference: `NMB-${randomRef}`,
-        orderId,
-        customerName: customerName.trim(),
-        type: "payment",
-        amount: totalAmount,
-        status: "successful",
-        channel: "bank_transfer",
-        description: `Payment for ${reference}`,
-        matchStatus: "matched",
-        resolutionNote: null,
-        createdAt: now,
+      if (paymentMethod === "walk_in" && checkout_link) {
+        const digits = normalizeNigerianPhone(customerPhone).replace(/\D/g, "")
+        const message = `Hi ${customerName.trim()}, here's your payment link for order ${transaction_reference_id}: ${checkout_link}`
+        window.open(`https://wa.me/${digits}?text=${encodeURIComponent(message)}`, "_blank")
+        toast.success("Order created — opening WhatsApp to send the payment link", {
+          description: transaction_reference_id,
+        })
+      } else if (paymentMethod === "online_booking" && checkout_link) {
+        window.open(checkout_link, "_blank")
+        toast.success("Order created — payment link opened", { description: transaction_reference_id })
+      } else {
+        toast.success("Order created successfully", { description: transaction_reference_id })
       }
-      addTransaction(txn)
-    }
 
-    toast.success("Order created successfully", { description: reference })
-    router.push("/orders")
+      router.push("/orders")
+    } catch (error) {
+      toast.error(apiError(error, "Couldn't create order"))
+    }
   }
 
   // ── Blocked state ────────────────────────────────────────────────────────────
 
-  if (kybStatus !== "approved") {
+  if (business?.current_kyb_status !== "verified") {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
         <Lock className="size-8 text-muted-foreground" />
@@ -270,7 +230,11 @@ export default function CreateOrderPage() {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   const submitLabel =
-    paymentMethod === "link" ? "Create Order & Send Payment Link" : "Create Order"
+    paymentMethod === "online_booking"
+      ? "Create Order & Send Payment Link"
+      : paymentMethod === "subscription_fulfillment"
+      ? "Create Order & Deduct from Subscription"
+      : "Create Order & Message WhatsApp"
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -289,268 +253,71 @@ export default function CreateOrderPage() {
           Create Order
         </h2>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          Create an order for a walk-in customer
+          Create an order for a walk-in or subscription customer
         </p>
       </div>
 
       <div className="flex flex-col gap-6">
-        {/* ── Section 1: Customer ── */}
-        <section className="rounded-xl border border-border bg-background p-6">
-          <h3 className="mb-4 text-base font-semibold text-foreground">Customer</h3>
-          <div className="flex flex-col gap-4">
-            {/* Full name */}
-            <div>
-              <Label htmlFor="customer-name" className="mb-1.5 block text-sm">
-                Full name
-              </Label>
-              <Input
-                id="customer-name"
-                placeholder="Customer's full name"
-                value={customerName}
-                onChange={(e) => {
-                  setCustomerName(e.target.value)
-                  if (errors.name) setErrors((er) => ({ ...er, name: undefined }))
-                }}
-                className={cn(errors.name && "border-destructive")}
-              />
-              {errors.name && (
-                <p className="mt-1 text-xs text-destructive">{errors.name}</p>
-              )}
-            </div>
+        <CustomerSection
+          name={customerName}
+          phone={customerPhone}
+          email={customerEmail}
+          onNameChange={(v) => {
+            setCustomerName(v)
+            if (errors.name) setErrors((e) => ({ ...e, name: undefined }))
+          }}
+          onPhoneChange={(v) => {
+            setCustomerPhone(v)
+            if (errors.phone) setErrors((e) => ({ ...e, phone: undefined }))
+          }}
+          onEmailChange={(v) => {
+            setCustomerEmail(v)
+            if (errors.email) setErrors((e) => ({ ...e, email: undefined }))
+          }}
+          nameError={errors.name}
+          phoneError={errors.phone}
+          emailError={errors.email}
+          detectedSub={detectedSub}
+          remainingCredits={remainingCredits}
+          showSubTrigger={showSubTrigger}
+          onStartSubscriptionClick={() => setSubDialogOpen(true)}
+        />
 
-            {/* WhatsApp number */}
-            <div>
-              <Label htmlFor="customer-phone" className="mb-1.5 block text-sm">
-                WhatsApp number
-              </Label>
-              <Input
-                id="customer-phone"
-                placeholder="+234 801 234 5678"
-                value={customerPhone}
-                onChange={(e) => {
-                  setCustomerPhone(e.target.value)
-                  if (errors.phone) setErrors((er) => ({ ...er, phone: undefined }))
-                }}
-                className={cn(errors.phone && "border-destructive")}
-              />
-              {errors.phone && (
-                <p className="mt-1 text-xs text-destructive">{errors.phone}</p>
-              )}
-            </div>
+        <ItemPickerSection
+          items={activeItems}
+          isLoading={itemsLoading}
+          categoryNameById={categoryNameById}
+          addedItems={addedItems}
+          eligibleCategoryNames={eligibleCategoryNames}
+          hasActiveSubscription={detectedSub !== null}
+          totalAmount={totalAmount}
+          error={errors.items}
+          onAddItem={addItem}
+          onRemoveItem={removeItem}
+          onUpdateQuantity={updateQuantity}
+        />
 
-            {/* Email (optional) */}
-            <div>
-              <Label htmlFor="customer-email" className="mb-1.5 block text-sm">
-                Email{" "}
-                <span className="font-normal text-muted-foreground">(optional)</span>
-              </Label>
-              <Input
-                id="customer-email"
-                placeholder="customer@email.com"
-                value={customerEmail}
-                onChange={(e) => setCustomerEmail(e.target.value)}
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* ── Section 2: Items & Pricing ── */}
-        <section className="rounded-xl border border-border bg-background p-6">
-          <h3 className="mb-4 text-base font-semibold text-foreground">
-            Items &amp; Pricing
-          </h3>
-
-          {/* Item picker */}
-          <div ref={pickerRef} className="relative mb-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search items to add…"
-                className={cn("pl-9", errors.items && "border-destructive")}
-                value={itemSearch}
-                onFocus={() => setPickerOpen(true)}
-                onChange={(e) => {
-                  setItemSearch(e.target.value)
-                  setPickerOpen(true)
-                }}
-              />
-            </div>
-            {errors.items && (
-              <p className="mt-1 text-xs text-destructive">{errors.items}</p>
-            )}
-
-            {pickerOpen && (
-              <div className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-border bg-background shadow-lg">
-                {filteredItems.length === 0 ? (
-                  <p className="px-3 py-3 text-sm text-muted-foreground">
-                    No items found
-                  </p>
-                ) : (
-                  filteredItems.map((item) => {
-                    const alreadyAdded = addedItems.some(
-                      (a) => a.priceListItemId === item.id
-                    )
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => addItem(item)}
-                        className={cn(
-                          "flex w-full items-center justify-between px-3 py-2.5 text-left hover:bg-muted",
-                          alreadyAdded && "opacity-50"
-                        )}
-                      >
-                        <div>
-                          <p className="text-sm font-medium text-foreground">
-                            {item.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {CATEGORY_LABELS[item.category]}
-                          </p>
-                        </div>
-                        <span className="text-sm tabular-nums text-muted-foreground">
-                          {formatNaira(item.price)}
-                        </span>
-                      </button>
-                    )
-                  })
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Added items list */}
-          {addedItems.length > 0 && (
-            <div className="mb-3">
-              {addedItems.map((item) => (
-                <div
-                  key={item.priceListItemId}
-                  className="flex items-center justify-between border-b border-border py-2 last:border-0"
-                >
-                  {/* Left: name + category */}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground">
-                      {item.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {CATEGORY_LABELS[item.category]}
-                    </p>
-                  </div>
-
-                  {/* Middle: quantity stepper */}
-                  <div className="mx-4 flex w-24 items-center justify-between rounded-md border border-border">
-                    <button
-                      type="button"
-                      onClick={() => updateQuantity(item.priceListItemId, -1)}
-                      className="flex size-7 items-center justify-center text-muted-foreground hover:text-foreground"
-                    >
-                      <Minus className="size-3" />
-                    </button>
-                    <span className="text-sm tabular-nums">{item.quantity}</span>
-                    <button
-                      type="button"
-                      onClick={() => updateQuantity(item.priceListItemId, 1)}
-                      className="flex size-7 items-center justify-center text-muted-foreground hover:text-foreground"
-                    >
-                      <Plus className="size-3" />
-                    </button>
-                  </div>
-
-                  {/* Right: line total + remove */}
-                  <div className="flex items-center gap-2">
-                    <span className="w-24 text-right text-sm font-medium tabular-nums text-foreground">
-                      {formatNaira(item.unitPrice * item.quantity)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeItem(item.priceListItemId)}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="size-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Total row */}
-          {addedItems.length > 0 && (
-            <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
-              <span className="text-sm font-medium text-foreground">Total</span>
-              <span className="font-[family-name:var(--font-jakarta)] text-lg font-bold tabular-nums text-foreground">
-                {formatNaira(totalAmount)}
-              </span>
-            </div>
-          )}
-        </section>
-
-        {/* ── Section 3: Payment Method ── */}
-        <section className="rounded-xl border border-border bg-background p-6">
-          <h3 className="mb-4 text-base font-semibold text-foreground">
-            Payment Method
-          </h3>
-
-          <RadioGroup
-            value={paymentMethod}
-            onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}
-            className="flex flex-col gap-3"
-          >
-            {/* Pay now at counter */}
-            <label
-              htmlFor="method-counter"
-              className={cn(
-                "flex cursor-pointer items-center gap-4 rounded-lg border p-4 transition-colors",
-                paymentMethod === "counter"
-                  ? "border-primary bg-primary/5"
-                  : "border-border hover:bg-muted/50"
-              )}
-            >
-              <RadioGroupItem value="counter" id="method-counter" />
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
-                <Landmark className="size-4 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">
-                  Pay now at counter
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Customer pays via bank transfer to your virtual account
-                </p>
-              </div>
-            </label>
-
-            {/* Send payment link */}
-            <label
-              htmlFor="method-link"
-              className={cn(
-                "flex cursor-pointer items-center gap-4 rounded-lg border p-4 transition-colors",
-                paymentMethod === "link"
-                  ? "border-primary bg-primary/5"
-                  : "border-border hover:bg-muted/50"
-              )}
-            >
-              <RadioGroupItem value="link" id="method-link" />
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted">
-                <LinkIcon className="size-4 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">
-                  Send payment link
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Generate a Nomba payment link to send via WhatsApp
-                </p>
-              </div>
-            </label>
-          </RadioGroup>
-        </section>
+        <PaymentMethodSection
+          value={paymentMethod}
+          onChange={setPaymentMethod}
+          detectedSub={detectedSub}
+          subDisabled={subDisabled}
+        />
 
         {/* ── Section 4: Create ── */}
-        <Button className="mt-2 w-full" onClick={handleSubmit}>
+        <Button className="mt-2 w-full" onClick={handleSubmit} disabled={isCreating}>
+          {isCreating && <Loader2 className="size-4 animate-spin" />}
           {submitLabel}
         </Button>
       </div>
+
+      {/* ── Start Subscription Dialog ── */}
+      <StartSubscriptionDialog
+        open={subDialogOpen}
+        onOpenChange={setSubDialogOpen}
+        prefilledCustomer={{ name: customerName, phone: customerPhone }}
+        onSubscriptionCreated={setDetectedSub}
+      />
     </div>
   )
 }

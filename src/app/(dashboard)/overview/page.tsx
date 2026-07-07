@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { format } from "date-fns"
 import {
   TrendingUp,
   Package,
@@ -24,11 +25,14 @@ import {
   CartesianGrid,
 } from "recharts"
 import { toast } from "sonner"
-import { useStore } from "@/lib/mock/store"
-import { useKybStatus } from "@/lib/hooks/useKybStatus"
+import { useGetMyBusinessQuery } from "@/redux/api/businessApi"
+import { useListOrdersQuery, type ListOrdersParams, type Period } from "@/redux/api/ordersApi"
+import { useListTransactionsQuery } from "@/redux/api/transactionsApi"
+import { PAYOUTS_ENABLED } from "@/lib/featureFlags"
 import StatusBadge from "@/components/shared/StatusBadge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
-import DateRangePicker, { isDateInRange, type DateRangeValue, type PresetKey } from "@/components/shared/DateRangePicker"
+import DateRangePicker, { type DateRangeValue, type PresetKey } from "@/components/shared/DateRangePicker"
 import {
   Table,
   TableBody,
@@ -37,6 +41,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+
+const RECENT_ORDERS_LIMIT = 5
+
+function toPeriodParams(range: DateRangeValue): Pick<ListOrdersParams, "period" | "start_date" | "end_date"> {
+  if (typeof range === "string") return { period: range as Period }
+  return {
+    period: "custom",
+    start_date: format(range.from, "yyyy-MM-dd"),
+    end_date: format(range.to, "yyyy-MM-dd"),
+  }
+}
 
 interface ChartPoint {
   label: string
@@ -160,9 +175,10 @@ interface StatCardProps {
   value: string | number
   icon: LucideIcon
   locked: boolean
+  isLoading?: boolean
 }
 
-function StatCard({ label, value, icon: Icon, locked }: StatCardProps) {
+function StatCard({ label, value, icon: Icon, locked, isLoading }: StatCardProps) {
   return (
     <div
       className={cn(
@@ -180,9 +196,15 @@ function StatCard({ label, value, icon: Icon, locked }: StatCardProps) {
           )}
         </div>
       </div>
-      <p className="font-[family-name:var(--font-jakarta)] text-2xl font-bold tabular-nums text-foreground">
-        {locked ? "—" : value}
-      </p>
+      {locked ? (
+        <p className="font-[family-name:var(--font-jakarta)] text-2xl font-bold tabular-nums text-foreground">—</p>
+      ) : isLoading ? (
+        <Skeleton className="h-8 w-20" />
+      ) : (
+        <p className="font-[family-name:var(--font-jakarta)] text-2xl font-bold tabular-nums text-foreground">
+          {value}
+        </p>
+      )}
     </div>
   )
 }
@@ -239,44 +261,26 @@ const CustomTooltip = ({
 
 export default function OverviewPage() {
   const router = useRouter()
-  const { kybStatus } = useKybStatus()
+  const { data: business } = useGetMyBusinessQuery()
   const [dateFilter, setDateFilter] = useState<DateRangeValue>("this_month")
   const [withdrawOpen, setWithdrawOpen] = useState(false)
 
-  const transactions = useStore((s) => s.transactions)
-  const orders = useStore((s) => s.orders)
-  const availableBalance = useStore((s) => s.availableBalance)
+  const locked = business?.current_kyb_status !== "verified"
 
-  const locked = kybStatus !== "approved"
+  const ordersParams: ListOrdersParams = {
+    ...toPeriodParams(dateFilter),
+    limit: RECENT_ORDERS_LIMIT,
+    offset: 0,
+  }
+  const { data: ordersData, isLoading: ordersLoading } = useListOrdersQuery(ordersParams)
+  const stats = ordersData?.stats
+  const recentOrders = ordersData?.orders ?? []
+  const totalRevenue = stats?.total_order_value ?? 0
+  const activeOrders = stats?.active_orders ?? 0
+  const completedOrders = stats?.completed_orders ?? 0
 
-  const totalRevenue = useMemo(() => {
-    return transactions
-      .filter(
-        (t) =>
-          t.status === "successful" &&
-          t.type !== "refund" &&
-          isDateInRange(new Date(t.createdAt), dateFilter)
-      )
-      .reduce((s, t) => s + t.amount, 0)
-  }, [transactions, dateFilter])
-
-  const activeOrders = useMemo(
-    () => orders.filter((o) => o.status !== "completed" && o.status !== "cancelled").length,
-    [orders]
-  )
-
-  const completedOrders = useMemo(
-    () => orders.filter((o) => o.status === "completed").length,
-    [orders]
-  )
-
-  const recentOrders = useMemo(
-    () =>
-      [...orders]
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 5),
-    [orders]
-  )
+  const { data: transactionsData, isLoading: balanceLoading } = useListTransactionsQuery({ limit: 1 })
+  const availableBalance = transactionsData?.available_balance ?? 0
 
   const chartData = getChartData(dateFilter)
   const yDomain: [number, number] = [0, Math.ceil(Math.max(1, ...chartData.map((d) => d.amount)) * 1.2 / 1000) * 1000]
@@ -314,10 +318,16 @@ export default function OverviewPage() {
               <Wallet className="size-[18px] text-white/70" />
             </div>
           </div>
-          <p className="font-[family-name:var(--font-jakarta)] text-2xl font-bold tabular-nums text-white">
-            {locked ? "—" : formatNaira(availableBalance)}
-          </p>
-          {!locked && (
+          {locked ? (
+            <p className="font-[family-name:var(--font-jakarta)] text-2xl font-bold tabular-nums text-white">—</p>
+          ) : balanceLoading ? (
+            <Skeleton className="h-8 w-24 bg-white/20" />
+          ) : (
+            <p className="font-[family-name:var(--font-jakarta)] text-2xl font-bold tabular-nums text-white">
+              {formatNaira(availableBalance)}
+            </p>
+          )}
+          {!locked && PAYOUTS_ENABLED && (
             <button
               onClick={() => setWithdrawOpen(true)}
               className="mt-1 text-xs text-white/90 cursor-pointer hover:underline"
@@ -327,9 +337,27 @@ export default function OverviewPage() {
           )}
         </div>
 
-        <StatCard label="Total Revenue" value={formatNaira(totalRevenue)} icon={TrendingUp} locked={locked} />
-        <StatCard label="Active Orders" value={activeOrders} icon={Package} locked={locked} />
-        <StatCard label="Completed Orders" value={completedOrders} icon={CheckCircle2} locked={locked} />
+        <StatCard
+          label="Total Revenue"
+          value={formatNaira(totalRevenue)}
+          icon={TrendingUp}
+          locked={locked}
+          isLoading={ordersLoading}
+        />
+        <StatCard
+          label="Active Orders"
+          value={activeOrders}
+          icon={Package}
+          locked={locked}
+          isLoading={ordersLoading}
+        />
+        <StatCard
+          label="Completed Orders"
+          value={completedOrders}
+          icon={CheckCircle2}
+          locked={locked}
+          isLoading={ordersLoading}
+        />
       </div>
 
       {/* Chart + Quick Actions */}
@@ -344,54 +372,56 @@ export default function OverviewPage() {
             </p>
           </div>
 
-          {locked ? (
-            <div className="flex h-[200px] flex-col items-center justify-center gap-2 rounded-lg bg-muted/30">
-              <Lock className="size-5 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">
-                Complete verification to unlock analytics
-              </p>
+          {/* Chart visualization isn't wired to real data yet — shown blurred as a preview,
+              with its own "Coming Soon" overlay independent of KYB lock state. */}
+          <div className="relative">
+            <div className="pointer-events-none select-none blur-sm">
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart
+                  data={chartData}
+                  barSize={28}
+                  margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    vertical={false}
+                    strokeDasharray="3 3"
+                    stroke="var(--border)"
+                  />
+                  <XAxis
+                    dataKey="label"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                    tickFormatter={(v: number) =>
+                      v >= 1000000
+                        ? `₦${v / 1000000}m`
+                        : v >= 1000
+                        ? `₦${v / 1000}k`
+                        : `₦${v}`
+                    }
+                    width={52}
+                    domain={yDomain}
+                    tickCount={5}
+                  />
+                  <Tooltip
+                    content={<CustomTooltip />}
+                    cursor={{ fill: "var(--muted)" }}
+                  />
+                  <Bar dataKey="amount" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart
-                data={chartData}
-                barSize={28}
-                margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
-              >
-                <CartesianGrid
-                  vertical={false}
-                  strokeDasharray="3 3"
-                  stroke="var(--border)"
-                />
-                <XAxis
-                  dataKey="label"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                  tickFormatter={(v: number) =>
-                    v >= 1000000
-                      ? `₦${v / 1000000}m`
-                      : v >= 1000
-                      ? `₦${v / 1000}k`
-                      : `₦${v}`
-                  }
-                  width={52}
-                  domain={yDomain}
-                  tickCount={5}
-                />
-                <Tooltip
-                  content={<CustomTooltip />}
-                  cursor={{ fill: "var(--muted)" }}
-                />
-                <Bar dataKey="amount" fill="var(--primary)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="rounded-full border border-border bg-background/90 px-3 py-1 text-sm font-medium text-foreground shadow-sm">
+                Coming Soon
+              </span>
+            </div>
+          </div>
         </div>
 
         <div className="flex flex-col rounded-xl border border-border bg-background p-5">
@@ -411,18 +441,20 @@ export default function OverviewPage() {
               locked={locked}
               onClick={locked ? handleLockedAction : () => router.push("/price-list")}
             />
-            <QuickAction
-              label="Withdraw Balance"
-              description="Transfer your available balance to your bank"
-              icon={Wallet}
-              locked={locked}
-              onClick={locked ? handleLockedAction : () => setWithdrawOpen(true)}
-            />
+            {PAYOUTS_ENABLED && (
+              <QuickAction
+                label="Withdraw Balance"
+                description="Transfer your available balance to your bank"
+                icon={Wallet}
+                locked={locked}
+                onClick={locked ? handleLockedAction : () => setWithdrawOpen(true)}
+              />
+            )}
           </div>
         </div>
       </div>
 
-      <WithdrawDialog open={withdrawOpen} onOpenChange={setWithdrawOpen} />
+      {PAYOUTS_ENABLED && <WithdrawDialog open={withdrawOpen} onOpenChange={setWithdrawOpen} />}
 
       {/* Recent Orders */}
       <div className="rounded-xl border border-border bg-background">
@@ -465,7 +497,17 @@ export default function OverviewPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {recentOrders.length === 0 ? (
+              {ordersLoading ? (
+                Array.from({ length: RECENT_ORDERS_LIMIT }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="pl-5 pr-4"><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell className="px-4"><Skeleton className="h-4 w-28" /></TableCell>
+                    <TableCell className="px-4 text-right"><Skeleton className="ml-auto h-4 w-16" /></TableCell>
+                    <TableCell className="px-4"><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
+                    <TableCell className="pl-4 pr-5 text-right"><Skeleton className="ml-auto h-4 w-14" /></TableCell>
+                  </TableRow>
+                ))
+              ) : recentOrders.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="py-12 text-center">
                     <ShoppingBag className="mx-auto size-7 text-muted-foreground" />
@@ -479,22 +521,22 @@ export default function OverviewPage() {
                 <TableRow
                   key={order.id}
                   className="cursor-pointer transition-colors hover:bg-muted/50"
-                  onClick={() => router.push(`/orders/${order.id}`)}
+                  onClick={() => router.push(`/orders?orderId=${order.id}`)}
                 >
                   <TableCell className="pl-5 pr-4 text-sm font-medium text-foreground">
-                    {order.reference}
+                    {order.reference_id}
                   </TableCell>
                   <TableCell className="px-4 text-sm text-muted-foreground">
-                    {order.customerName}
+                    {order.customer_name}
                   </TableCell>
                   <TableCell className="px-4 text-right text-sm font-medium text-foreground">
-                    {formatNaira(order.totalAmount)}
+                    {formatNaira(order.amount)}
                   </TableCell>
                   <TableCell className="px-4">
                     <StatusBadge status={order.status} />
                   </TableCell>
                   <TableCell className="pl-4 pr-5 text-right text-sm text-muted-foreground">
-                    {new Date(order.createdAt).toLocaleDateString("en-NG", {
+                    {new Date(order.created_at).toLocaleDateString("en-NG", {
                       month: "short",
                       day: "numeric",
                     })}

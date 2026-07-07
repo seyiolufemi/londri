@@ -6,12 +6,21 @@ import Link from "next/link"
 import { CheckCircle2, MapPin, MessageCircle, Minus, Plus, ShoppingCart, X } from "lucide-react"
 import Navbar from "@/components/customer/Navbar"
 import { useStore } from "@/lib/mock/store"
-import { discoveryBusinesses, priceListItems } from "@/lib/mock/data"
+import { useGetBusinessByIdQuery } from "@/redux/api/businessApi"
+import { useGetCategoriesQuery, useGetItemsQuery } from "@/redux/api/catalogApi"
+import {
+  getDistanceKm,
+  pickIllustration,
+  pickIsOpen,
+  pickOperatingHours,
+} from "@/components/customer/businessDisplay"
+import { useGeolocation } from "@/lib/hooks/useGeolocation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Dialog,
   DialogContent,
@@ -19,20 +28,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import type { PriceCategory, ServiceType } from "@/types"
-
-const CATEGORY_LABELS: Record<PriceCategory, string> = {
-  clothing: "Clothing",
-  bedding: "Bedding",
-  household: "Household",
-  specialty: "Specialty",
-}
-
-const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
-  wash: "Wash",
-  dry_clean: "Dry Clean",
-  iron: "Iron",
-}
 
 const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 const DAY_LABELS: Record<string, string> = {
@@ -221,7 +216,18 @@ function RequestQuoteDialog({
 
 export default function LaundryDetailPage() {
   const params = useParams<{ id: string }>()
-  const business = discoveryBusinesses.find((b) => b.id === params.id)
+  const businessId = params.id
+
+  const { data: business, isLoading: businessLoading, isError: businessError } = useGetBusinessByIdQuery(businessId)
+  const { data: categoriesData, isLoading: categoriesLoading } = useGetCategoriesQuery(businessId)
+  const { data: itemsData, isLoading: itemsLoading } = useGetItemsQuery({ businessId })
+  const { coords: customerCoords } = useGeolocation()
+
+  const categories = useMemo(() => categoriesData ?? [], [categoriesData])
+  const categoryNameById = useMemo(
+    () => Object.fromEntries(categories.map((c) => [c.id, c.name])),
+    [categories]
+  )
 
   const cart = useStore((s) => s.cart)
   const addToCart = useStore((s) => s.addToCart)
@@ -229,30 +235,25 @@ export default function LaundryDetailPage() {
   const updateCartItemQuantity = useStore((s) => s.updateCartItemQuantity)
   const setCartSheetOpen = useStore((s) => s.setCartSheetOpen)
 
-  const [categoryFilter, setCategoryFilter] = useState<PriceCategory | "all">("all")
+  const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [quoteDialogOpen, setQuoteDialogOpen] = useState(false)
 
-  const items = useMemo(() => {
-    if (!business) return []
-    const ids = new Set(business.itemIds)
-    return priceListItems.filter((item) => ids.has(item.id) && item.isActive)
-  }, [business])
+  const items = useMemo(() => (itemsData ?? []).filter((item) => item.is_active), [itemsData])
 
-  const categories = useMemo(() => {
-    const set = new Set<PriceCategory>()
-    items.forEach((item) => set.add(item.category))
-    return Array.from(set)
-  }, [items])
+  const usedCategoryIds = useMemo(
+    () => Array.from(new Set(items.map((item) => item.category_id))),
+    [items]
+  )
 
   const filteredItems = useMemo(() => {
     if (categoryFilter === "all") return items
-    return items.filter((item) => item.category === categoryFilter)
+    return items.filter((item) => item.category_id === categoryFilter)
   }, [items, categoryFilter])
 
   const businessCart = business ? (cart[business.id] ?? []) : []
   const cartCount = businessCart.reduce((sum, i) => sum + i.quantity, 0)
   const cartSubtotal = businessCart.reduce((sum, i) => {
-    const item = priceListItems.find((p) => p.id === i.priceListItemId)
+    const item = items.find((p) => p.id === i.priceListItemId)
     return sum + (item ? item.price * i.quantity : 0)
   }, 0)
 
@@ -260,7 +261,25 @@ export default function LaundryDetailPage() {
     return businessCart.find((i) => i.priceListItemId === itemId)?.quantity ?? 0
   }
 
-  if (!business) {
+  const isLoading = businessLoading || categoriesLoading || itemsLoading
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="mx-auto flex max-w-4xl flex-col items-center gap-8 px-6 py-10 md:flex-row md:items-start">
+          <Skeleton className="h-52 w-52 shrink-0 rounded-lg md:h-56" />
+          <div className="w-full flex-1 space-y-3">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-32 w-full max-w-xs" />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (businessError || !business) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -277,6 +296,10 @@ export default function LaundryDetailPage() {
     )
   }
 
+  const distanceKm = getDistanceKm(business, customerCoords)
+  const isOpen = pickIsOpen(business.id)
+  const operatingHours = pickOperatingHours(business.id)
+
   return (
     <div className="min-h-screen bg-background pb-24">
       <Navbar />
@@ -286,7 +309,7 @@ export default function LaundryDetailPage() {
         {/* Illustration */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={`/illustrations/washing-machines/${business.illustrationVariant}`}
+          src={`/illustrations/washing-machines/${pickIllustration(business.id)}`}
           alt=""
           aria-hidden="true"
           className="h-52 w-auto shrink-0 object-contain md:h-56"
@@ -299,9 +322,9 @@ export default function LaundryDetailPage() {
           </h1>
 
           <div className="mt-2 flex items-center justify-center gap-1.5 text-sm text-muted-foreground md:justify-start">
-            <span>{business.distanceKm}km away</span>
+            <span>{distanceKm}km away</span>
             <span>·</span>
-            {business.isOpen ? (
+            {isOpen ? (
               <span className="flex items-center gap-1.5 text-green-600">
                 <span className="size-1.5 rounded-full bg-green-500" />
                 Open now
@@ -314,7 +337,7 @@ export default function LaundryDetailPage() {
           {/* Operating hours */}
           <div className="mx-auto mt-4 max-w-xs text-sm md:mx-0">
             {WEEK_DAYS.map((day) => {
-              const dayHours = business.operatingHours[day]
+              const dayHours = operatingHours[day]
               return (
                 <div
                   key={day}
@@ -345,17 +368,19 @@ export default function LaundryDetailPage() {
           <h2 className="font-[family-name:var(--font-jakarta)] text-xl font-semibold text-foreground">
             Services &amp; Pricing
           </h2>
-          <button
-            type="button"
-            onClick={() => setQuoteDialogOpen(true)}
-            className="cursor-pointer text-sm text-muted-foreground underline-offset-2 hover:underline"
-          >
-            Got a lot of laundry? Request a quote instead
-          </button>
+          {business.phone && (
+            <button
+              type="button"
+              onClick={() => setQuoteDialogOpen(true)}
+              className="cursor-pointer text-sm text-muted-foreground underline-offset-2 hover:underline"
+            >
+              Got a lot of laundry? Request a quote instead
+            </button>
+          )}
         </div>
 
         {/* Category filter — only shown when it would actually filter something */}
-        {categories.length > 1 && (
+        {usedCategoryIds.length > 1 && (
           <div className="mb-4 flex flex-wrap gap-2">
             <button
               type="button"
@@ -369,106 +394,112 @@ export default function LaundryDetailPage() {
             >
               All
             </button>
-            {categories.map((cat) => (
+            {usedCategoryIds.map((catId) => (
               <button
-                key={cat}
+                key={catId}
                 type="button"
-                onClick={() => setCategoryFilter(cat)}
+                onClick={() => setCategoryFilter(catId)}
                 className={cn(
                   "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-                  categoryFilter === cat
+                  categoryFilter === catId
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted text-muted-foreground hover:bg-muted/70"
                 )}
               >
-                {CATEGORY_LABELS[cat]}
+                {categoryNameById[catId] ?? "Uncategorized"}
               </button>
             ))}
           </div>
         )}
 
-        <div>
-          {filteredItems.map((item) => {
-            const quantity = getQuantity(item.id)
-            return (
-              <div
-                key={item.id}
-                className="flex items-center justify-between gap-4 border-b border-border py-4 last:border-0"
-              >
-                {/* Left: name, badges, unit */}
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground">{item.name}</p>
-                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                      {CATEGORY_LABELS[item.category]}
-                    </span>
-                    {item.serviceTypes.map((st) => (
-                      <span
-                        key={st}
-                        className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-                      >
-                        {SERVICE_TYPE_LABELS[st]}
+        {filteredItems.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            No items available yet — check back soon.
+          </p>
+        ) : (
+          <div>
+            {filteredItems.map((item) => {
+              const quantity = getQuantity(item.id)
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between gap-4 border-b border-border py-4 last:border-0"
+                >
+                  {/* Left: name, badges, unit */}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground">{item.name}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                        {categoryNameById[item.category_id] ?? "Uncategorized"}
                       </span>
-                    ))}
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">{item.unit}</p>
-                </div>
-
-                {/* Middle: price */}
-                <p className="shrink-0 text-base font-semibold tabular-nums text-foreground">
-                  {formatNaira(item.price)}
-                </p>
-
-                {/* Right: Add button or stepper + remove */}
-                <div className="flex shrink-0 items-center gap-2">
-                  {quantity === 0 ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => addToCart(business.id, item.id, 1)}
-                    >
-                      Add
-                    </Button>
-                  ) : (
-                    <>
-                      <div className="flex items-center gap-1 rounded-md border border-border">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateCartItemQuantity(business.id, item.id, quantity - 1)
-                          }
-                          className="flex size-7 items-center justify-center text-muted-foreground hover:text-foreground"
+                      {item.service_types.map((st) => (
+                        <span
+                          key={st}
+                          className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
                         >
-                          <Minus className="size-3" />
-                        </button>
-                        <span className="w-5 text-center text-sm tabular-nums">
-                          {quantity}
+                          {st}
                         </span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateCartItemQuantity(business.id, item.id, quantity + 1)
-                          }
-                          className="flex size-7 items-center justify-center text-muted-foreground hover:text-foreground"
-                        >
-                          <Plus className="size-3" />
-                        </button>
-                      </div>
+                      ))}
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">{item.unit}</p>
+                  </div>
+
+                  {/* Middle: price */}
+                  <p className="shrink-0 text-base font-semibold tabular-nums text-foreground">
+                    {formatNaira(item.price)}
+                  </p>
+
+                  {/* Right: Add button or stepper + remove */}
+                  <div className="flex shrink-0 items-center gap-2">
+                    {quantity === 0 ? (
                       <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-7 text-muted-foreground hover:text-destructive"
-                        onClick={() => removeFromCart(business.id, item.id)}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addToCart(business.id, item.id, 1)}
                       >
-                        <X className="size-4" />
+                        Add
                       </Button>
-                    </>
-                  )}
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-1 rounded-md border border-border">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateCartItemQuantity(business.id, item.id, quantity - 1)
+                            }
+                            className="flex size-7 items-center justify-center text-muted-foreground hover:text-foreground"
+                          >
+                            <Minus className="size-3" />
+                          </button>
+                          <span className="w-5 text-center text-sm tabular-nums">
+                            {quantity}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateCartItemQuantity(business.id, item.id, quantity + 1)
+                            }
+                            className="flex size-7 items-center justify-center text-muted-foreground hover:text-foreground"
+                          >
+                            <Plus className="size-3" />
+                          </button>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 text-muted-foreground hover:text-destructive"
+                          onClick={() => removeFromCart(business.id, item.id)}
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── Section 3: Sticky "View Cart" bar ── */}
@@ -486,12 +517,14 @@ export default function LaundryDetailPage() {
       )}
 
       {/* ── Request a Quote ── */}
-      <RequestQuoteDialog
-        open={quoteDialogOpen}
-        onOpenChange={setQuoteDialogOpen}
-        businessName={business.name}
-        whatsappNumber={business.whatsappNumber}
-      />
+      {business.phone && (
+        <RequestQuoteDialog
+          open={quoteDialogOpen}
+          onOpenChange={setQuoteDialogOpen}
+          businessName={business.name}
+          whatsappNumber={business.phone}
+        />
+      )}
     </div>
   )
 }
