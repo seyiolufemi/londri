@@ -11,13 +11,10 @@ import TransactionFilters, { type StatusFilter } from "@/components/transactions
 import TransactionsTable from "@/components/transactions/TransactionsTable"
 import PayoutSection from "@/components/transactions/PayoutSection"
 import { formatNaira } from "@/components/transactions/constants"
+import { PAYOUTS_ENABLED } from "@/lib/featureFlags"
 
 const PAGE_SIZE = 10
 const SEARCH_DEBOUNCE_MS = 400
-
-// No payouts/withdrawal endpoint exists yet — flip this once the backend
-// confirms one, to bring back Payout History and Withdraw Balance.
-const PAYOUTS_ENABLED = false
 
 function toPeriodParams(range: DateRangeValue): Pick<ListTransactionsParams, "period" | "start_date" | "end_date"> {
   if (typeof range === "string") return { period: range as Period }

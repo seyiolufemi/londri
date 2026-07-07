@@ -16,6 +16,7 @@ import CustomerSection from "@/components/orders/new/CustomerSection"
 import ItemPickerSection, { type AddedItem } from "@/components/orders/new/ItemPickerSection"
 import PaymentMethodSection from "@/components/orders/new/PaymentMethodSection"
 import StartSubscriptionDialog from "@/components/shared/StartSubscriptionDialog"
+import { SUBSCRIPTION_DETECTION_ENABLED } from "@/lib/featureFlags"
 
 interface FormErrors {
   name?: string
@@ -25,10 +26,6 @@ interface FormErrors {
 }
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-// No real customer-subscription lookup endpoint exists yet — flip this once the
-// backend confirms one, to re-enable phone-based detection and "Bill to Subscription".
-const SUBSCRIPTION_DETECTION_ENABLED = false
 
 // Matches the mock customer-subscription store's phone format — the phone
 // lookup itself is still mock (no real customer-subscription endpoint yet).
