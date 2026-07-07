@@ -14,10 +14,12 @@ interface CustomerLandingPageProps {
 export default async function CustomerLandingPage({ searchParams }: CustomerLandingPageProps) {
   // The Nomba checkout's default return URL points at the site root — the
   // payment gateway has no way to know this is an owner-dashboard app, so we
-  // catch its redirect here and route the owner back into their dashboard.
+  // catch its redirect here and route the owner to a confirmation screen
+  // (the gateway sends the owner back here on failure/cancel too, so we
+  // can't just assume success from the redirect alone).
   const { orderId } = await searchParams
   if (orderId) {
-    redirect(`/orders?orderId=${orderId}`)
+    redirect(`/orders/callback?orderId=${orderId}`)
   }
 
   return (
