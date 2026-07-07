@@ -6,6 +6,7 @@ import { AlertCircle, Clock } from "lucide-react"
 import Sidebar from "@/components/layout/Sidebar"
 import Header from "@/components/layout/Header"
 import { useGetMyBusinessQuery } from "@/redux/api/businessApi"
+import { useGetMeQuery } from "@/redux/api/authApi"
 import { toKybStatus } from "@/lib/kybStatus"
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -13,6 +14,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const { data: business, isLoading: businessLoading } = useGetMyBusinessQuery()
   const kybStatus = toKybStatus(business?.current_kyb_status, businessLoading)
+  // Fetched here (not just on the profile page) so it's cached and available
+  // app-wide as soon as the owner enters the dashboard after login.
+  useGetMeQuery()
 
   return (
     <div className="flex h-screen overflow-hidden">

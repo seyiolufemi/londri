@@ -22,13 +22,34 @@ export interface LoginResponse {
 export interface ForgotPasswordRequest { email: string }
 export interface ResetPasswordRequest { email: string; otp_code: string; new_password: string }
 
+export interface BankAccount {
+  id: number
+  account_number: string
+  bank_code: string
+  account_name: string
+  is_verified: boolean
+  is_default: boolean
+}
+
 export interface MeResponse {
   id: string
   name: string
   email: string
   phone: string
   role: string
+  profile_picture_url: string | null
   is_email_verified: boolean
+  bank_accounts: BankAccount[]
+}
+
+export interface UpdateMeRequest {
+  name?: string
+  email?: string
+  phone?: string
+  profile_picture_url?: string
+  old_password?: string
+  new_password?: string
+  confirm_password?: string
 }
 
 export interface MessageResponse { message: string }
@@ -62,6 +83,10 @@ export const authApi = apiManager.injectEndpoints({
       query: () => "/auth/me",
       providesTags: ["User"],
     }),
+    updateMe: builder.mutation<MeResponse, UpdateMeRequest>({
+      query: (body) => ({ url: "/auth/me", method: "PATCH", body }),
+      invalidatesTags: ["User"],
+    }),
   }),
   overrideExisting: false,
 })
@@ -76,4 +101,5 @@ export const {
   useLogoutMutation,
   useGetMeQuery,
   useLazyGetMeQuery,
+  useUpdateMeMutation,
 } = authApi
