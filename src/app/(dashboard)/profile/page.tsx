@@ -1,10 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { Pencil, CheckCircle2 } from "lucide-react"
+import { Pencil, Loader2, CheckCircle2 } from "lucide-react"
 import { toast } from "sonner"
-import { useStore } from "@/lib/mock/store"
-import { useGetMeQuery } from "@/redux/api/authApi"
+import { useGetMeQuery, useUpdateMeMutation } from "@/redux/api/authApi"
+import { useUploadFileMutation } from "@/redux/api/uploadApi"
+import { apiError } from "@/lib/apiError"
 import UploadZone from "@/components/shared/UploadZone"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -17,64 +18,58 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp"
 
 // ─── Personal Info Section ────────────────────────────────────────────────────
 
 function PersonalInfoSection() {
   const { data: me } = useGetMeQuery()
-  const avatarUrl = useStore((s) => s.profileAvatarUrl)
-  const setProfileAvatarUrl = useStore((s) => s.setProfileAvatarUrl)
+  const [updateMe, { isLoading: isSaving }] = useUpdateMeMutation()
+  const [uploadFile, { isLoading: isUploading }] = useUploadFileMutation()
 
-  const [confirmedPhone, setConfirmedPhone] = useState("")
+  const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false)
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
-
-  const [verifyingPhone, setVerifyingPhone] = useState(false)
-  const [otpValue, setOtpValue] = useState("")
 
   // Seed the editable fields from /auth/me once it loads, rather than in an
   // effect — avoids an extra render pass (see react-hooks/set-state-in-effect).
   const [hasPrefilled, setHasPrefilled] = useState(false)
   if (me && !hasPrefilled) {
     setHasPrefilled(true)
-    setConfirmedPhone(me.phone)
+    setName(me.name)
     setEmail(me.email)
     setPhone(me.phone)
   }
 
-  function handleSave() {
-    if (phone !== confirmedPhone) {
-      setVerifyingPhone(true)
-      setOtpValue("")
-    } else {
+  async function handleSave() {
+    try {
+      await updateMe({ name: name.trim(), email: email.trim(), phone: phone.trim() }).unwrap()
       toast.success("Profile updated")
+    } catch (error) {
+      toast.error(apiError(error, "Couldn't update profile"))
     }
   }
 
-  function handleVerifyPhone() {
-    setConfirmedPhone(phone)
-    setVerifyingPhone(false)
-    setOtpValue("")
-    toast.success("Phone number updated")
-  }
-
-  function handleCancelVerify() {
-    setPhone(confirmedPhone)
-    setVerifyingPhone(false)
-    setOtpValue("")
-  }
-
-  function handleSaveAvatar() {
+  async function handleSaveAvatar() {
     if (!avatarFile) return
-    const url = URL.createObjectURL(avatarFile)
-    setProfileAvatarUrl(url)
-    setAvatarDialogOpen(false)
-    setAvatarFile(null)
-    toast.success("Profile photo updated")
+    try {
+      const { url } = await uploadFile(avatarFile).unwrap()
+      await updateMe({ profile_picture_url: url }).unwrap()
+      setAvatarDialogOpen(false)
+      setAvatarFile(null)
+      toast.success("Profile photo updated")
+    } catch (error) {
+      toast.error(apiError(error, "Couldn't update profile photo"))
+    }
   }
+
+  const initials = (me?.name ?? "")
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0] ?? "")
+    .join("")
+    .toUpperCase()
 
   return (
     <div className="rounded-xl border border-border bg-background p-6">
@@ -82,15 +77,15 @@ function PersonalInfoSection() {
       <div className="mb-6">
         <div className="relative inline-block">
           <div className="flex size-16 items-center justify-center overflow-hidden rounded-full bg-primary/10">
-            {avatarUrl ? (
+            {me?.profile_picture_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={avatarUrl}
+                src={me.profile_picture_url}
                 alt="Profile photo"
                 className="size-full object-cover"
               />
             ) : (
-              <span className="text-base font-semibold text-primary">AO</span>
+              <span className="text-base font-semibold text-primary">{initials || "?"}</span>
             )}
           </div>
           <button
@@ -104,82 +99,50 @@ function PersonalInfoSection() {
         </div>
       </div>
 
-      {verifyingPhone ? (
-        /* ── OTP verification view ── */
-        <div className="space-y-4">
-          <p className="text-sm text-foreground">
-            Enter the 6-digit code sent to{" "}
-            <span className="font-medium">{phone}</span>
-          </p>
-          <InputOTP maxLength={6} value={otpValue} onChange={setOtpValue}>
-            <InputOTPGroup>
-              <InputOTPSlot index={0} />
-              <InputOTPSlot index={1} />
-              <InputOTPSlot index={2} />
-              <InputOTPSlot index={3} />
-              <InputOTPSlot index={4} />
-              <InputOTPSlot index={5} />
-            </InputOTPGroup>
-          </InputOTP>
-          <div className="flex gap-3">
-            <Button
-              onClick={handleVerifyPhone}
-              disabled={otpValue.length !== 6}
-            >
-              Verify &amp; Save
-            </Button>
-            <Button variant="ghost" className="text-sm" onClick={handleCancelVerify}>
-              Cancel
-            </Button>
-          </div>
+      <div className="space-y-4">
+        <div>
+          <Label htmlFor="profile-name" className="mb-1.5 block text-sm">
+            Full name
+          </Label>
+          <Input id="profile-name" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
-      ) : (
-        /* ── Normal fields view ── */
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="profile-name" className="mb-1.5 block text-sm">
-              Full name
-            </Label>
-            <Input id="profile-name" value={me?.name ?? ""} disabled />
-            <p className="mt-1 text-xs text-muted-foreground">
-              To update your legal name, contact support.
-            </p>
-          </div>
 
-          <div>
-            <Label htmlFor="profile-email" className="mb-1.5 block text-sm">
-              Email
-            </Label>
-            <Input
-              id="profile-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="profile-phone" className="mb-1.5 block text-sm">
-              Phone number
-            </Label>
-            <Input
-              id="profile-phone"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="profile-role" className="mb-1.5 block text-sm">
-              Role
-            </Label>
-            <Input id="profile-role" value={me?.role ?? ""} disabled />
-          </div>
-
-          <Button onClick={handleSave}>Save Changes</Button>
+        <div>
+          <Label htmlFor="profile-email" className="mb-1.5 block text-sm">
+            Email
+          </Label>
+          <Input
+            id="profile-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </div>
-      )}
+
+        <div>
+          <Label htmlFor="profile-phone" className="mb-1.5 block text-sm">
+            Phone number
+          </Label>
+          <Input
+            id="profile-phone"
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="profile-role" className="mb-1.5 block text-sm">
+            Role
+          </Label>
+          <Input id="profile-role" value={me?.role ?? ""} disabled />
+        </div>
+
+        <Button onClick={handleSave} disabled={isSaving}>
+          {isSaving && <Loader2 className="size-4 animate-spin" />}
+          Save Changes
+        </Button>
+      </div>
 
       {/* Avatar upload dialog */}
       <Dialog open={avatarDialogOpen} onOpenChange={setAvatarDialogOpen}>
@@ -203,7 +166,8 @@ function PersonalInfoSection() {
             >
               Cancel
             </Button>
-            <Button disabled={!avatarFile} onClick={handleSaveAvatar}>
+            <Button disabled={!avatarFile || isUploading} onClick={handleSaveAvatar}>
+              {isUploading && <Loader2 className="size-4 animate-spin" />}
               Save
             </Button>
           </DialogFooter>
@@ -216,6 +180,7 @@ function PersonalInfoSection() {
 // ─── Change Password Section ──────────────────────────────────────────────────
 
 function ChangePasswordSection() {
+  const [updateMe, { isLoading: isSaving }] = useUpdateMeMutation()
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -227,11 +192,20 @@ function ChangePasswordSection() {
   const canSubmit =
     currentPassword.length > 0 && meetsLength && confirmPassword.length > 0 && passwordsMatch
 
-  function handleUpdatePassword() {
-    setCurrentPassword("")
-    setNewPassword("")
-    setConfirmPassword("")
-    toast.success("Password updated successfully")
+  async function handleUpdatePassword() {
+    try {
+      await updateMe({
+        old_password: currentPassword,
+        new_password: newPassword,
+        confirm_password: confirmPassword,
+      }).unwrap()
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmPassword("")
+      toast.success("Password updated successfully")
+    } catch (error) {
+      toast.error(apiError(error, "Couldn't update password"))
+    }
   }
 
   return (
@@ -290,7 +264,8 @@ function ChangePasswordSection() {
           )}
         </div>
 
-        <Button onClick={handleUpdatePassword} disabled={!canSubmit}>
+        <Button onClick={handleUpdatePassword} disabled={!canSubmit || isSaving}>
+          {isSaving && <Loader2 className="size-4 animate-spin" />}
           Update Password
         </Button>
       </div>

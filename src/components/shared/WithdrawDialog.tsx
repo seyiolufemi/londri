@@ -5,6 +5,8 @@ import { toast } from "sonner"
 import { Loader2, CheckCircle2 } from "lucide-react"
 import { useStore } from "@/lib/mock/store"
 import { useListTransactionsQuery } from "@/redux/api/transactionsApi"
+import { useGetMeQuery } from "@/redux/api/authApi"
+import { useGetBanksQuery } from "@/redux/api/accountsApi"
 import type { Payout } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -44,10 +46,16 @@ export default function WithdrawDialog({ open, onOpenChange }: WithdrawDialogPro
   )
   const availableBalance = transactionsData?.available_balance ?? 0
 
-  // Bank account details have no real GET endpoint yet (only lookup/save) — still mock.
-  const businessBankName = useStore((s) => s.businessBankName)
-  const businessAccountNumber = useStore((s) => s.businessAccountNumber)
-  const businessAccountName = useStore((s) => s.businessAccountName)
+  // Real default bank account from the owner's profile.
+  const { data: me } = useGetMeQuery()
+  const { data: banks } = useGetBanksQuery()
+  const bankAccounts = me?.bank_accounts ?? []
+  const defaultAccount = bankAccounts.find((a) => a.is_default) ?? bankAccounts[0] ?? null
+  const businessBankName =
+    (banks ?? []).find((b) => b.code === defaultAccount?.bank_code)?.name ?? defaultAccount?.bank_code ?? ""
+  const businessAccountNumber = defaultAccount?.account_number ?? ""
+  const businessAccountName = defaultAccount?.account_name ?? ""
+
   const addPayout = useStore((s) => s.addPayout)
   const updatePayoutStatus = useStore((s) => s.updatePayoutStatus)
   const addToTotalPaidOut = useStore((s) => s.addToTotalPaidOut)
@@ -189,14 +197,24 @@ export default function WithdrawDialog({ open, onOpenChange }: WithdrawDialogPro
                 {error && <p className="text-xs text-destructive">{error}</p>}
               </div>
 
-              <div className="rounded-lg bg-muted/30 p-4 space-y-0.5">
-                <p className="text-sm font-medium text-foreground">{businessBankName}</p>
-                <p className="text-sm text-muted-foreground">
-                  ••••{last4} · {businessAccountName}
+              {defaultAccount ? (
+                <div className="rounded-lg bg-muted/30 p-4 space-y-0.5">
+                  <p className="text-sm font-medium text-foreground">{businessBankName}</p>
+                  <p className="text-sm text-muted-foreground">
+                    ••••{last4} · {businessAccountName}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-destructive">
+                  Add a bank account in Settings → Payout Settings before withdrawing.
                 </p>
-              </div>
+              )}
 
-              <Button className="w-full" onClick={handleConfirm} disabled={balanceLoading}>
+              <Button
+                className="w-full"
+                onClick={handleConfirm}
+                disabled={balanceLoading || !defaultAccount}
+              >
                 {buttonLabel}
               </Button>
             </div>

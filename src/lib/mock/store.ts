@@ -88,10 +88,6 @@ interface StoreState {
   availableBalance: number
   totalPaidOut: number
 
-  businessBankName: string
-  businessAccountNumber: string
-  businessAccountName: string
-
   setBusinesses: (businesses: Business[]) => void
   setKybSubmissions: (submissions: KybSubmission[]) => void
   setPriceListItems: (items: PriceListItem[]) => void
@@ -128,10 +124,6 @@ interface StoreState {
 
   businessProfile: BusinessProfileSettings
   setBusinessProfile: (profile: Partial<BusinessProfileSettings>) => void
-  setBusinessBankDetails: (bankName: string, accountNumber: string, accountName: string) => void
-
-  profileAvatarUrl: string | null
-  setProfileAvatarUrl: (url: string | null) => void
 
   notifications: Notification[]
   markNotificationRead: (id: string) => void
@@ -220,10 +212,6 @@ export const useStore = create<StoreState>()(
 
   availableBalance: 340000,
   totalPaidOut: 1850000,
-
-  businessBankName: "GTBank",
-  businessAccountNumber: "0123456789",
-  businessAccountName: "AMARA OKONKWO",
 
   setBusinesses: (businesses) => set({ businesses }),
   setKybSubmissions: (kybSubmissions) => set({ kybSubmissions }),
@@ -356,11 +344,6 @@ export const useStore = create<StoreState>()(
   businessProfile: DEFAULT_BUSINESS_PROFILE,
   setBusinessProfile: (profile) =>
     set((state) => ({ businessProfile: { ...state.businessProfile, ...profile } })),
-  setBusinessBankDetails: (bankName, accountNumber, accountName) =>
-    set({ businessBankName: bankName, businessAccountNumber: accountNumber, businessAccountName: accountName }),
-
-  profileAvatarUrl: null,
-  setProfileAvatarUrl: (profileAvatarUrl) => set({ profileAvatarUrl }),
 
   notifications: initialNotifications,
   markNotificationRead: (id) =>
