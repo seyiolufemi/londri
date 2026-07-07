@@ -14,7 +14,8 @@ export interface Transaction {
   amount: number
   currency: string
   status: TransactionStatus
-  payment_channel: string
+  // Real API sends null until the payment gateway reports which channel was used.
+  payment_channel: string | null
   paid_at: string | null
   created_at: string
 }
