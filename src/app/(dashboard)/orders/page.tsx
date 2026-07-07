@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { Suspense, useEffect, useRef, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Plus } from "lucide-react"
 import { toast } from "sonner"
@@ -29,6 +29,14 @@ function toPeriodParams(range: DateRangeValue): Pick<ListOrdersParams, "period" 
 }
 
 export default function OrdersPage() {
+  return (
+    <Suspense fallback={null}>
+      <OrdersPageContent />
+    </Suspense>
+  )
+}
+
+function OrdersPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { data: business } = useGetMyBusinessQuery()
