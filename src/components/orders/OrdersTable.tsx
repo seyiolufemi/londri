@@ -1,4 +1,4 @@
-import { SearchX } from "lucide-react"
+import { Loader2, SearchX } from "lucide-react"
 import StatusBadge from "@/components/shared/StatusBadge"
 import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -53,6 +53,7 @@ function SkeletonRows() {
 interface OrdersTableProps {
   orders: OrderSummary[]
   isLoading: boolean
+  isFetching?: boolean
   page: number
   pageSize: number
   totalItems: number
@@ -63,19 +64,25 @@ interface OrdersTableProps {
 export default function OrdersTable({
   orders,
   isLoading,
+  isFetching = false,
   page,
   pageSize,
   totalItems,
   onPageChange,
   onRowClick,
 }: OrdersTableProps) {
+  const isRefreshing = isFetching && !isLoading
+
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-background">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead className="pl-5 pr-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Order Ref
+              <span className="flex items-center gap-1.5">
+                Order Ref
+                {isRefreshing && <Loader2 className="size-3 animate-spin" />}
+              </span>
             </TableHead>
             <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Customer
@@ -97,7 +104,7 @@ export default function OrdersTable({
             </TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody>
+        <TableBody className={cn(isRefreshing && "opacity-60 transition-opacity")}>
           {isLoading ? (
             <SkeletonRows />
           ) : orders.length === 0 ? (

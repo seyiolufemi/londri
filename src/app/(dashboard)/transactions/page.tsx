@@ -52,7 +52,7 @@ export default function TransactionsPage() {
     offset: (page - 1) * PAGE_SIZE,
   }
 
-  const { data, isLoading } = useListTransactionsQuery(params)
+  const { data, isLoading, isFetching } = useListTransactionsQuery(params)
   const transactions = data?.transactions ?? []
 
   function handleStatusChange(v: StatusFilter) {
@@ -113,6 +113,7 @@ export default function TransactionsPage() {
         <TransactionsTable
           transactions={transactions}
           isLoading={isLoading}
+          isFetching={isFetching}
           page={page}
           pageSize={PAGE_SIZE}
           totalItems={data?.pagination.total ?? 0}

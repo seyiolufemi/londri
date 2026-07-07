@@ -1,3 +1,4 @@
+import { Loader2 } from "lucide-react"
 import StatusBadge from "@/components/shared/StatusBadge"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -10,6 +11,7 @@ import {
 } from "@/components/ui/table"
 import TablePagination from "@/components/shared/TablePagination"
 import type { Transaction } from "@/redux/api/transactionsApi"
+import { cn } from "@/lib/utils"
 import { formatDate, formatNaira, formatPaymentChannel } from "./constants"
 
 function SkeletonRows() {
@@ -32,6 +34,7 @@ function SkeletonRows() {
 interface TransactionsTableProps {
   transactions: Transaction[]
   isLoading: boolean
+  isFetching?: boolean
   page: number
   pageSize: number
   totalItems: number
@@ -41,18 +44,24 @@ interface TransactionsTableProps {
 export default function TransactionsTable({
   transactions,
   isLoading,
+  isFetching = false,
   page,
   pageSize,
   totalItems,
   onPageChange,
 }: TransactionsTableProps) {
+  const isRefreshing = isFetching && !isLoading
+
   return (
     <div className="rounded-xl border border-border bg-background">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead className="pl-5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Reference
+              <span className="flex items-center gap-1.5">
+                Reference
+                {isRefreshing && <Loader2 className="size-3 animate-spin" />}
+              </span>
             </TableHead>
             <TableHead className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Order
@@ -71,7 +80,7 @@ export default function TransactionsTable({
             </TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody>
+        <TableBody className={cn(isRefreshing && "opacity-60 transition-opacity")}>
           {isLoading ? (
             <SkeletonRows />
           ) : transactions.length === 0 ? (

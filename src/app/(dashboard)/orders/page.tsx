@@ -80,7 +80,7 @@ export default function OrdersPage() {
     offset: (page - 1) * PAGE_SIZE,
   }
 
-  const { data, isLoading } = useListOrdersQuery(params)
+  const { data, isLoading, isFetching } = useListOrdersQuery(params)
   const orders = data?.orders ?? []
   const locked = business?.current_kyb_status !== "verified"
 
@@ -152,6 +152,7 @@ export default function OrdersPage() {
       <OrdersTable
         orders={orders}
         isLoading={isLoading}
+        isFetching={isFetching}
         page={page}
         pageSize={PAGE_SIZE}
         totalItems={data?.pagination.total ?? 0}
