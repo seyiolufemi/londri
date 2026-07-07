@@ -2,24 +2,31 @@
 
 import Link from "next/link"
 import { motion } from "framer-motion"
-import type { DiscoveryBusiness, ServiceType } from "@/types"
-
-const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
-  wash: "Wash",
-  dry_clean: "Dry Clean",
-  iron: "Iron",
-}
+import type { DiscoverableBusiness } from "@/redux/api/businessApi"
+import {
+  SERVICE_TYPE_LABELS,
+  pickCheapestPrice,
+  pickDistanceKm,
+  pickIllustration,
+  pickIsOpen,
+  pickServiceTypes,
+} from "./businessDisplay"
 
 function formatNaira(amount: number): string {
   return "₦" + amount.toLocaleString("en-NG")
 }
 
 interface BusinessCardProps {
-  business: DiscoveryBusiness
+  business: DiscoverableBusiness
   index: number
 }
 
 export default function BusinessCard({ business, index }: BusinessCardProps) {
+  const distanceKm = pickDistanceKm(business.id)
+  const isOpen = pickIsOpen(business.id)
+  const serviceTypes = pickServiceTypes(business.id)
+  const cheapestPrice = pickCheapestPrice(business.id)
+
   return (
     <Link href={`/laundry/${business.id}`} className="block">
     <motion.div
@@ -32,7 +39,7 @@ export default function BusinessCard({ business, index }: BusinessCardProps) {
       {/* Illustration — centered */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={`/illustrations/washing-machines/${business.illustrationVariant}`}
+        src={`/illustrations/washing-machines/${pickIllustration(business.id)}`}
         alt=""
         aria-hidden="true"
         className="mx-auto block h-48 w-auto object-contain sm:h-52 md:h-56"
@@ -45,9 +52,9 @@ export default function BusinessCard({ business, index }: BusinessCardProps) {
         </h3>
 
         <div className="mt-1 flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
-          <span>{business.distanceKm}km away</span>
+          <span>{distanceKm}km away</span>
           <span>·</span>
-          {business.isOpen ? (
+          {isOpen ? (
             <span className="flex items-center gap-1.5 text-green-600">
               <span className="size-1.5 rounded-full bg-green-500" />
               Open now
@@ -59,7 +66,7 @@ export default function BusinessCard({ business, index }: BusinessCardProps) {
 
         {/* Service tags — max 2 */}
         <div className="mt-3 flex flex-wrap justify-center gap-1.5">
-          {business.serviceTypes.slice(0, 2).map((type) => (
+          {serviceTypes.slice(0, 2).map((type) => (
             <span
               key={type}
               className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground"
@@ -70,7 +77,7 @@ export default function BusinessCard({ business, index }: BusinessCardProps) {
         </div>
 
         <p className="mt-3 text-[15px] font-bold tabular-nums text-foreground">
-          From {formatNaira(business.cheapestPrice)}
+          From {formatNaira(cheapestPrice)}
         </p>
       </div>
     </motion.div>

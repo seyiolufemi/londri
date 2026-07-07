@@ -16,15 +16,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { discoveryBusinesses } from "@/lib/mock/data"
+import { useGetDiscoverableBusinessesQuery } from "@/redux/api/businessApi"
+import { ALL_SERVICE_TYPES, SERVICE_TYPE_LABELS, pickCheapestPrice, pickDistanceKm, pickServiceTypes } from "@/components/customer/businessDisplay"
+import { Skeleton } from "@/components/ui/skeleton"
 import type { ServiceType } from "@/types"
-
-const ALL_SERVICE_TYPES: ServiceType[] = ["wash", "dry_clean", "iron"]
-const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
-  wash: "Wash",
-  dry_clean: "Dry Clean",
-  iron: "Iron",
-}
 
 type SortOption = "nearest" | "price_asc" | "price_desc"
 
@@ -35,6 +30,19 @@ const SORT_LABELS: Record<SortOption, string> = {
 }
 
 const PAGE_SIZE = 9
+
+function BusinessCardSkeleton() {
+  return (
+    <div className="p-4 text-center">
+      <Skeleton className="mx-auto h-48 w-full rounded-lg sm:h-52 md:h-56" />
+      <div className="mt-6 flex flex-col items-center gap-2">
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-4 w-20" />
+      </div>
+    </div>
+  )
+}
 
 export default function DiscoverPage() {
   return (
@@ -53,23 +61,30 @@ function DiscoverPageContent() {
   const [loadingMore, setLoadingMore] = useState(false)
   const sentinelRef = useRef<HTMLDivElement>(null)
 
+  // Backend already only returns discoverable, verified businesses here.
+  const { data: businesses, isLoading } = useGetDiscoverableBusinessesQuery()
+  const discoverable = useMemo(
+    () => businesses ?? [],
+    [businesses]
+  )
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    const result = discoveryBusinesses.filter((b) => {
+    const result = discoverable.filter((b) => {
       const matchesSearch =
         !q || b.name.toLowerCase().includes(q) || b.address.toLowerCase().includes(q)
       const matchesServiceType =
         serviceTypeFilters.length === 0 ||
-        serviceTypeFilters.some((t) => b.serviceTypes.includes(t))
+        serviceTypeFilters.some((t) => pickServiceTypes(b.id).includes(t))
       return matchesSearch && matchesServiceType
     })
 
     return [...result].sort((a, b) => {
-      if (sort === "price_asc") return a.cheapestPrice - b.cheapestPrice
-      if (sort === "price_desc") return b.cheapestPrice - a.cheapestPrice
-      return a.distanceKm - b.distanceKm
+      if (sort === "price_asc") return pickCheapestPrice(a.id) - pickCheapestPrice(b.id)
+      if (sort === "price_desc") return pickCheapestPrice(b.id) - pickCheapestPrice(a.id)
+      return pickDistanceKm(a.id) - pickDistanceKm(b.id)
     })
-  }, [search, serviceTypeFilters, sort])
+  }, [discoverable, search, serviceTypeFilters, sort])
 
   // Filters/search/sort reset the loaded batch back to the first page. Adjusted
   // during render (React's recommended pattern for derived resets) rather than
@@ -229,7 +244,13 @@ function DiscoverPageContent() {
         </p>
 
         {/* Results */}
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+              <BusinessCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <SearchX className="size-8 text-muted-foreground" />
             <p className="mt-2 text-sm text-muted-foreground">No laundries found</p>
