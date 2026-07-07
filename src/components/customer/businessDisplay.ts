@@ -1,5 +1,7 @@
 import type { GeolocationCoords } from "@/lib/hooks/useGeolocation"
-import type { ServiceType } from "@/types"
+import type { OperatingDay, ServiceType } from "@/types"
+
+const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 export const ALL_SERVICE_TYPES: ServiceType[] = ["wash", "dry_clean", "iron"]
 
@@ -91,4 +93,18 @@ export function pickServiceTypes(id: string): ServiceType[] {
 
 export function pickCheapestPrice(id: string): number {
   return 300 + (hashSeed(id + "price") % 35) * 50
+}
+
+// No operating-hours data on the business detail response yet — every day
+// runs 8am–8pm except one deterministically "closed" day per business.
+export function pickOperatingHours(id: string): Record<string, OperatingDay> {
+  const closedDayIndex = hashSeed(id + "closed") % WEEK_DAYS.length
+  const hours: Record<string, OperatingDay> = {}
+  WEEK_DAYS.forEach((day, i) => {
+    hours[day] =
+      i === closedDayIndex
+        ? { open: false, openTime: "", closeTime: "" }
+        : { open: true, openTime: "08:00", closeTime: "20:00" }
+  })
+  return hours
 }

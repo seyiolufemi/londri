@@ -42,6 +42,25 @@ export interface DiscoverableBusiness {
   logo_url: string | null
 }
 
+// Single public business detail (GET /business/{id}) — same shape as
+// BusinessResponse minus cac_registration_number.
+export interface BusinessDetailResponse {
+  id: string
+  name: string
+  address: string
+  city: string
+  state: string
+  latitude: number
+  longitude: number
+  phone: string
+  email: string
+  logo_url: string
+  is_active: boolean
+  is_discoverable: boolean
+  current_kyb_status: string
+  created_at: string
+}
+
 export const businessApi = apiManager.injectEndpoints({
   endpoints: (builder) => ({
     registerBusiness: builder.mutation<BusinessResponse, RegisterBusinessRequest>({
@@ -57,6 +76,11 @@ export const businessApi = apiManager.injectEndpoints({
       query: () => "/business",
       providesTags: ["Business"],
     }),
+    // Public single-business detail — no auth required.
+    getBusinessById: builder.query<BusinessDetailResponse, string>({
+      query: (businessId) => `/business/${businessId}`,
+      providesTags: ["Business"],
+    }),
   }),
   overrideExisting: false,
 })
@@ -65,4 +89,5 @@ export const {
   useRegisterBusinessMutation,
   useGetMyBusinessQuery,
   useGetDiscoverableBusinessesQuery,
+  useGetBusinessByIdQuery,
 } = businessApi

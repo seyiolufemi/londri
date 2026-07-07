@@ -141,6 +141,12 @@ export const ordersApi = apiManager.injectEndpoints({
       query: (body) => ({ url: "/orders", method: "POST", body }),
       invalidatesTags: ["Order"],
     }),
+    // Customer-facing checkout — routed through a separate handler that
+    // attaches the customer's bearer token when signed in, but still allows
+    // guest checkout (no token) since that's optional on this flow.
+    createCustomerOrder: builder.mutation<CreateOrderResponse, CreateOrderRequest>({
+      query: (body) => ({ url: "/orders/checkout", method: "POST", body }),
+    }),
     listOrders: builder.query<ListOrdersResponse, ListOrdersParams | void>({
       query: (params) => ({ url: "/orders", params: params ?? {} }),
       providesTags: ["Order"],
@@ -159,6 +165,7 @@ export const ordersApi = apiManager.injectEndpoints({
 
 export const {
   useCreateOrderMutation,
+  useCreateCustomerOrderMutation,
   useListOrdersQuery,
   useGetOrderQuery,
   useUpdateOrderStatusMutation,
