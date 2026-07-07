@@ -23,6 +23,12 @@ export interface Business {
   createdAt: string
 }
 
+export interface OperatingDay {
+  open: boolean
+  openTime: string
+  closeTime: string
+}
+
 // Customer-facing view of a laundry business, shown on the public discovery pages.
 export interface DiscoveryBusiness {
   id: string
@@ -33,6 +39,10 @@ export interface DiscoveryBusiness {
   isOpen: boolean
   serviceTypes: ServiceType[] // derived from the business's price list items
   cheapestPrice: number // derived from the business's price list items
+  address: string
+  operatingHours: Record<string, OperatingDay> // keyed "Mon".."Sun"
+  itemIds: string[] // price list items this business offers, for the detail page's menu
+  whatsappNumber: string
 }
 
 export interface KybSubmission {
@@ -168,4 +178,30 @@ export interface Notification {
   read: boolean
   createdAt: Date
   linkTo?: string
+}
+
+// Customer cart line item — quantity of one price list item at one business.
+export interface CartItem {
+  priceListItemId: string
+  quantity: number
+}
+
+// A signed-in customer's past order, shown in their order history. Distinct
+// from the owner-side Order (which belongs to one business by definition) —
+// a customer's orders can span multiple businesses, hence businessId/businessName.
+export interface CustomerOrder {
+  id: string
+  businessId: string
+  businessName: string
+  reference: string
+  items: OrderItem[]
+  totalAmount: number
+  status: OrderStatus
+  pickupAddress: string
+  createdAt: string
+}
+
+export interface CustomerAuth {
+  isAuthenticated: boolean
+  email: string | null
 }

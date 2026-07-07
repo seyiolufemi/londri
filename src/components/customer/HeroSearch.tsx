@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, type FormEvent } from "react"
+import { useRouter } from "next/navigation"
 import { Search } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -20,6 +21,7 @@ const HOLD_MS = 1500
 const BETWEEN_MS = 300
 
 export default function HeroSearch() {
+  const router = useRouter()
   const [query, setQuery] = useState("")
   const [focused, setFocused] = useState(false)
   const [animated, setAnimated] = useState("")
@@ -63,8 +65,17 @@ export default function HeroSearch() {
     return () => clearTimeout(timer)
   }, [animating])
 
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    const trimmed = query.trim()
+    router.push(trimmed ? `/discover?q=${encodeURIComponent(trimmed)}` : "/discover")
+  }
+
   return (
-    <div className="mx-auto flex h-[55px] w-[517px] items-center rounded-full border border-[color-mix(in_oklch,var(--primary)_82%,white)] bg-[color-mix(in_oklch,var(--primary)_92%,white)] p-[5px]">
+    <form
+      onSubmit={handleSubmit}
+      className="mx-auto flex h-[50px] w-full max-w-[517px] items-center rounded-full border border-[color-mix(in_oklch,var(--primary)_82%,white)] bg-[color-mix(in_oklch,var(--primary)_92%,white)] p-[5px] sm:h-[55px]"
+    >
       <Input
         value={animating ? animated : query}
         onChange={(e) => setQuery(e.target.value)}
@@ -73,12 +84,12 @@ export default function HeroSearch() {
         className="h-full flex-1 border-none bg-transparent pl-4 text-[15px] text-white shadow-none placeholder:text-white/70 focus-visible:ring-0 focus-visible:ring-offset-0"
       />
       <Button
-        type="button"
+        type="submit"
         aria-label="Search"
-        className="flex size-[45px] shrink-0 items-center justify-center rounded-full bg-white p-0 text-primary hover:bg-white/90"
+        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white p-0 text-primary hover:bg-white/90 sm:size-[45px]"
       >
-        <Search className="size-[18px]" />
+        <Search className="size-4 sm:size-[18px]" />
       </Button>
-    </div>
+    </form>
   )
 }

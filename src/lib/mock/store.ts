@@ -15,6 +15,9 @@ import type {
   Payout,
   PayoutStatus,
   Notification,
+  CartItem,
+  OperatingDay,
+  CustomerAuth,
 } from "@/types"
 import {
   businesses as initialBusinesses,
@@ -126,12 +129,23 @@ interface StoreState {
   notifications: Notification[]
   markNotificationRead: (id: string) => void
   markAllNotificationsRead: () => void
-}
 
-export interface OperatingDay {
-  open: boolean
-  openTime: string
-  closeTime: string
+  cart: Record<string, CartItem[]>
+  addToCart: (businessId: string, priceListItemId: string, quantity: number) => void
+  removeFromCart: (businessId: string, priceListItemId: string) => void
+  updateCartItemQuantity: (businessId: string, priceListItemId: string, quantity: number) => void
+  clearBusinessCart: (businessId: string) => void
+  getCartItemCount: () => number
+
+  // Shared so the Navbar's cart icon and any page's own "View Cart" affordance
+  // (e.g. the business detail page's sticky bar) toggle the SAME CartSheet
+  // instance (mounted once, inside Navbar) instead of each mounting its own.
+  cartSheetOpen: boolean
+  setCartSheetOpen: (open: boolean) => void
+
+  customerAuth: CustomerAuth
+  setCustomerAuth: (email: string) => void
+  customerSignOut: () => void
 }
 
 export interface BusinessProfileSettings {
@@ -171,7 +185,7 @@ const EMPTY_KYB_DATA: KybFormData = {
 
 export const useStore = create<StoreState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
   signupData: { businessName: "", ownerName: "", email: "", phone: "", password: "" },
   signupStep: 1,
   setSignupData: (data) => set((state) => ({ signupData: { ...state.signupData, ...data } })),
@@ -349,6 +363,63 @@ export const useStore = create<StoreState>()(
     set((state) => ({
       notifications: state.notifications.map((n) => ({ ...n, read: true })),
     })),
+
+  cart: {},
+
+  addToCart: (businessId, priceListItemId, quantity) =>
+    set((state) => {
+      const existing = state.cart[businessId] ?? []
+      const idx = existing.findIndex((i) => i.priceListItemId === priceListItemId)
+      const updated =
+        idx >= 0
+          ? existing.map((i, index) =>
+              index === idx ? { ...i, quantity: i.quantity + quantity } : i
+            )
+          : [...existing, { priceListItemId, quantity }]
+      return { cart: { ...state.cart, [businessId]: updated } }
+    }),
+
+  removeFromCart: (businessId, priceListItemId) =>
+    set((state) => ({
+      cart: {
+        ...state.cart,
+        [businessId]: (state.cart[businessId] ?? []).filter(
+          (i) => i.priceListItemId !== priceListItemId
+        ),
+      },
+    })),
+
+  updateCartItemQuantity: (businessId, priceListItemId, quantity) =>
+    set((state) => {
+      const existing = state.cart[businessId] ?? []
+      const updated =
+        quantity <= 0
+          ? existing.filter((i) => i.priceListItemId !== priceListItemId)
+          : existing.map((i) =>
+              i.priceListItemId === priceListItemId ? { ...i, quantity } : i
+            )
+      return { cart: { ...state.cart, [businessId]: updated } }
+    }),
+
+  clearBusinessCart: (businessId) =>
+    set((state) => {
+      const next = { ...state.cart }
+      delete next[businessId]
+      return { cart: next }
+    }),
+
+  getCartItemCount: () =>
+    Object.values(get().cart).reduce(
+      (sum, items) => sum + items.reduce((s, i) => s + i.quantity, 0),
+      0
+    ),
+
+  cartSheetOpen: false,
+  setCartSheetOpen: (cartSheetOpen) => set({ cartSheetOpen }),
+
+  customerAuth: { isAuthenticated: false, email: null },
+  setCustomerAuth: (email) => set({ customerAuth: { isAuthenticated: true, email } }),
+  customerSignOut: () => set({ customerAuth: { isAuthenticated: false, email: null } }),
     }),
     {
       name: "londri-kyb-progress",

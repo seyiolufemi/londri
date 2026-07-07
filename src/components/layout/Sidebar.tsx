@@ -8,7 +8,7 @@ import {
   LayoutDashboard,
   ClipboardList,
   Tag,
-  RefreshCw,
+  // RefreshCw, // Subscriptions - disabled, future flow
   ArrowLeftRight,
   UserCircle,
   Settings,
@@ -53,7 +53,8 @@ const MAIN_NAV: NavEntry[] = [
   { label: "Overview", icon: LayoutDashboard, href: "/overview" },
   { label: "Orders", icon: ClipboardList, href: "/orders" },
   { label: "Price List", icon: Tag, href: "/price-list" },
-  { label: "Subscriptions", icon: RefreshCw, href: "/subscriptions" },
+  // Subscriptions - disabled, future flow
+  // { label: "Subscriptions", icon: RefreshCw, href: "/subscriptions" },
   { label: "Transactions", icon: ArrowLeftRight, href: "/transactions" },
 ]
 

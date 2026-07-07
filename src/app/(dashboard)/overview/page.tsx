@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import {
   TrendingUp,
   Package,
-  Users,
+  CheckCircle2,
   Lock,
   Plus,
   Tag,
@@ -245,7 +245,6 @@ export default function OverviewPage() {
 
   const transactions = useStore((s) => s.transactions)
   const orders = useStore((s) => s.orders)
-  const customerSubscriptions = useStore((s) => s.customerSubscriptions)
   const availableBalance = useStore((s) => s.availableBalance)
 
   const locked = business?.current_kyb_status !== "verified"
@@ -266,9 +265,9 @@ export default function OverviewPage() {
     [orders]
   )
 
-  const activeSubscribers = useMemo(
-    () => customerSubscriptions.filter((s) => s.status === "active").length,
-    [customerSubscriptions]
+  const completedOrders = useMemo(
+    () => orders.filter((o) => o.status === "completed").length,
+    [orders]
   )
 
   const recentOrders = useMemo(
@@ -330,7 +329,7 @@ export default function OverviewPage() {
 
         <StatCard label="Total Revenue" value={formatNaira(totalRevenue)} icon={TrendingUp} locked={locked} />
         <StatCard label="Active Orders" value={activeOrders} icon={Package} locked={locked} />
-        <StatCard label="Active Subscribers" value={activeSubscribers} icon={Users} locked={locked} />
+        <StatCard label="Completed Orders" value={completedOrders} icon={CheckCircle2} locked={locked} />
       </div>
 
       {/* Chart + Quick Actions */}

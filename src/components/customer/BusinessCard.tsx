@@ -1,3 +1,7 @@
+"use client"
+
+import Link from "next/link"
+import { motion } from "framer-motion"
 import type { DiscoveryBusiness, ServiceType } from "@/types"
 
 const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
@@ -10,16 +14,28 @@ function formatNaira(amount: number): string {
   return "₦" + amount.toLocaleString("en-NG")
 }
 
-export default function BusinessCard({ business }: { business: DiscoveryBusiness }) {
+interface BusinessCardProps {
+  business: DiscoveryBusiness
+  index: number
+}
+
+export default function BusinessCard({ business, index }: BusinessCardProps) {
   return (
-    <div className="cursor-pointer rounded-xl p-4 text-center transition-colors hover:bg-muted/50">
+    <Link href={`/laundry/${business.id}`} className="block">
+    <motion.div
+      className="cursor-pointer rounded-xl p-4 text-center transition-colors hover:bg-muted/50"
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.2 }}
+      transition={{ duration: 0.6, ease: "easeOut", delay: index * 0.08 }}
+    >
       {/* Illustration — centered */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={`/illustrations/washing-machines/${business.illustrationVariant}`}
         alt=""
         aria-hidden="true"
-        className="mx-auto block h-56 w-auto object-contain"
+        className="mx-auto block h-48 w-auto object-contain sm:h-52 md:h-56"
       />
 
       {/* Content */}
@@ -57,6 +73,7 @@ export default function BusinessCard({ business }: { business: DiscoveryBusiness
           From {formatNaira(business.cheapestPrice)}
         </p>
       </div>
-    </div>
+    </motion.div>
+    </Link>
   )
 }

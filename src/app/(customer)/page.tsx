@@ -1,6 +1,11 @@
+"use client"
+
+import { use } from "react"
 import Link from "next/link"
 import { redirect } from "next/navigation"
+import { motion } from "framer-motion"
 import { ArrowRight } from "lucide-react"
+import Navbar from "@/components/customer/Navbar"
 import HeroSearch from "@/components/customer/HeroSearch"
 import BusinessCard from "@/components/customer/BusinessCard"
 import Footer from "@/components/customer/Footer"
@@ -11,42 +16,62 @@ interface CustomerLandingPageProps {
   searchParams: Promise<{ orderId?: string }>
 }
 
-export default async function CustomerLandingPage({ searchParams }: CustomerLandingPageProps) {
+export default function CustomerLandingPage({ searchParams }: CustomerLandingPageProps) {
   // The Nomba checkout's default return URL points at the site root — the
   // payment gateway has no way to know this is an owner-dashboard app, so we
   // catch its redirect here and route the owner to a confirmation screen
   // (the gateway sends the owner back here on failure/cancel too, so we
-  // can't just assume success from the redirect alone).
-  const { orderId } = await searchParams
+  // can't just assume success from the redirect alone). This page is a
+  // Client Component (framer-motion needs the browser), so searchParams is
+  // unwrapped with React's use() instead of awaited.
+  const { orderId } = use(searchParams)
   if (orderId) {
     redirect(`/orders/callback?orderId=${orderId}`)
   }
 
   return (
     <div className="min-h-screen overflow-x-clip bg-background">
-      {/* ── Hero (teal block) ── */}
-      <div className="bg-primary">
-      {/* Content container — navbar + hero copy, centered at 1092px */}
-      <div className="relative mx-auto max-w-[1092px] px-8">
-        {/* Navbar */}
-        <nav className="flex items-center justify-between py-6">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo+wordmark-white.png" alt="Londri" className="h-7 w-auto" />
-          <Link
-            href="/business"
-            className="cursor-pointer text-sm text-white/90 transition-colors hover:text-white"
-          >
-            For Businesses
-          </Link>
-        </nav>
+      <Navbar />
 
+      {/*
+        ── Hero (teal block) ──
+        The bg-primary color and pattern overlay stay static (not animated) —
+        only the content (headline/subtitle/search/illustrations) fades in via
+        the motion.div below. Fading the background too made it visible
+        through the transparent page background during the transition, reading
+        as a white flash. The navbar itself lives in its own always-visible
+        Navbar component above, not inside this fade-in wrapper, since nav
+        should be immediately usable rather than scroll/mount-revealed.
+
+        overflow-hidden below is load-bearing, not decorative: the headline's
+        responsive mt-* margin would otherwise collapse through this div (and
+        its motion.div/content-container descendants, none of which have
+        padding/border to stop it) and escape above the hero entirely, leaving
+        a gap of exposed page background between the navbar and the hero.
+        overflow-hidden establishes a new block formatting context that
+        contains the margin instead.
+      */}
+      <div className="relative overflow-hidden bg-primary">
+      {/* Pattern overlay — its own layer so opacity fades the texture only, not the primary color or content */}
+      <div
+        className="pointer-events-none absolute inset-0 bg-[url('/pattern-bg-hero.png')] bg-cover bg-center opacity-25"
+        aria-hidden="true"
+      />
+      {/* Content — fades in on mount since it's above the fold */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
+      {/* Content container — hero copy, centered at 1092px */}
+      <div className="relative z-10 mx-auto max-w-[1092px] px-8">
         {/* Headline */}
-        <h1 className="mx-auto mt-32 max-w-[905px] text-center font-[family-name:var(--font-space-grotesk)] text-[74px] font-bold leading-[1.084] tracking-[-2.22px] text-white">
+        <h1 className="mx-auto mt-16 max-w-[905px] text-center font-[family-name:var(--font-space-grotesk)] text-3xl font-bold leading-[1.084] tracking-[-2.22px] text-white sm:mt-20 sm:text-4xl md:mt-24 md:text-5xl lg:mt-32 lg:text-6xl xl:text-[74px]">
           Finding laundry services near you just got easier.
         </h1>
 
         {/* Subtitle */}
-        <p className="mx-auto mt-6 max-w-[420px] text-center font-sans text-[18px] leading-[1.4] text-white">
+        <p className="mx-auto mt-6 max-w-[280px] text-center font-sans text-base leading-[1.4] text-white sm:max-w-[360px] md:max-w-[420px] md:text-lg">
           Discover trusted laundries nearby, book in seconds, and follow every step easily.
         </p>
 
@@ -57,17 +82,28 @@ export default async function CustomerLandingPage({ searchParams }: CustomerLand
       </div>
 
       {/*
-        Washing machine illustrations — positioned against a 1440px reference frame.
-        The prop-free -hero SVGs still carry ~304px of transparent space above the
-        machine body (body starts at viewBox y=250 → ~304px at the 767px render), so
-        each image is pulled up 230px. The 388px overflow-hidden container then shows
-        the band containing the body, control panel and door/drum, while the lower
-        door and feet are cut below the hero's bottom edge. The inner wrapper is
-        promoted to its own compositor layer (translateZ) so the large SVGs composite
-        instead of repainting on scroll.
+        Washing machine illustrations — the 1440x767 desktop composition is scaled
+        as a single unit via CSS transform rather than rewritten per breakpoint, so
+        every child's fixed px position/size scales together and stays
+        proportionally correct. transform-gpu (rather than a raw
+        `[transform:translateZ(0)]` arbitrary value) composes with the scale-*
+        utilities below while still promoting the layer for scroll compositing.
+        Centering uses `left-1/2 -translate-x-1/2` rather than `mx-auto`: browsers
+        resolve `margin: 0 auto` on a box WIDER than its container by clamping
+        margin-left to 0 and dumping all the overflow into margin-right, which
+        left-aligns the box instead of centering it — a real, easy-to-miss
+        Chromium/CSS behavior for any container narrower than the fixed 1440px
+        frame (every breakpoint below "lg", plus even "lg" viewports narrower
+        than 1440px). The left-1/2/-translate-x-1/2 pairing centers correctly at
+        any container width and composes cleanly with the scale transform.
+        The crop window height scales alongside the composition so roughly the
+        same band (body, control panel, door/drum) stays visible at every
+        breakpoint. On mobile the composition intentionally overflows the
+        viewport width slightly — clipped by overflow-x-clip — rather than
+        shrinking the illustrations below a readable size.
       */}
-      <div className="relative mt-8 h-[388px] overflow-x-clip overflow-y-hidden">
-        <div className="pointer-events-none relative mx-auto h-full w-[1440px] [transform:translateZ(0)]">
+      <div className="relative z-10 mt-8 h-[175px] overflow-x-clip overflow-y-hidden sm:h-[215px] md:h-[290px] lg:h-[388px]">
+        <div className="pointer-events-none relative left-1/2 h-full w-[1440px] origin-top -translate-x-1/2 scale-[0.45] transform-gpu sm:scale-[0.55] md:scale-[0.75] lg:scale-100">
           {/* Back layer — coral */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -94,17 +130,24 @@ export default async function CustomerLandingPage({ searchParams }: CustomerLand
           />
         </div>
       </div>
+      </motion.div>
       </div>
 
       {/* ── Discovery preview: "Laundries near you" ── */}
-      <section className="mx-auto max-w-[1092px] px-8 py-16">
-        <h2 className="mb-8 text-center font-[family-name:var(--font-space-grotesk)] text-[48px] font-bold text-foreground">
+      <motion.section
+        className="mx-auto max-w-[1092px] px-8 py-16"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.2 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
+        <h2 className="mb-8 text-center font-[family-name:var(--font-space-grotesk)] text-3xl font-bold text-foreground md:text-4xl lg:text-[48px]">
           Laundries near you
         </h2>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {discoveryBusinesses.map((business) => (
-            <BusinessCard key={business.id} business={business} />
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {discoveryBusinesses.slice(0, 6).map((business, index) => (
+            <BusinessCard key={business.id} business={business} index={index} />
           ))}
         </div>
 
@@ -116,7 +159,7 @@ export default async function CustomerLandingPage({ searchParams }: CustomerLand
             </Link>
           </Button>
         </div>
-      </section>
+      </motion.section>
 
       {/* ── Footer ── */}
       <Footer />

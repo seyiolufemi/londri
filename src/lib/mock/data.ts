@@ -11,6 +11,8 @@ import type {
   Notification,
   DiscoveryBusiness,
   ServiceType,
+  OperatingDay,
+  CustomerOrder,
 } from "@/types"
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -250,9 +252,25 @@ interface DiscoverySpec {
   hours: { open: string; close: string }
   isOpen: boolean
   itemIds: string[]
+  address: string
+  closedDays?: string[] // defaults to ["Sun"]
+  whatsappNumber: string
 }
 
 const SERVICE_TYPE_ORDER: ServiceType[] = ["wash", "dry_clean", "iron"]
+const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+function buildWeeklyHours(
+  open: string,
+  close: string,
+  closedDays: string[] = ["Sun"]
+): Record<string, OperatingDay> {
+  const hours: Record<string, OperatingDay> = {}
+  WEEK_DAYS.forEach((day) => {
+    hours[day] = { open: !closedDays.includes(day), openTime: open, closeTime: close }
+  })
+  return hours
+}
 
 function buildDiscoveryBusiness(spec: DiscoverySpec): DiscoveryBusiness {
   const items = spec.itemIds
@@ -273,6 +291,10 @@ function buildDiscoveryBusiness(spec: DiscoverySpec): DiscoveryBusiness {
     isOpen: spec.isOpen,
     serviceTypes,
     cheapestPrice,
+    address: spec.address,
+    operatingHours: buildWeeklyHours(spec.hours.open, spec.hours.close, spec.closedDays),
+    itemIds: spec.itemIds,
+    whatsappNumber: spec.whatsappNumber,
   }
 }
 
@@ -285,6 +307,8 @@ export const discoveryBusinesses: DiscoveryBusiness[] = [
     hours: { open: "08:00", close: "20:00" },
     isOpen: true,
     itemIds: ["item_001", "item_002", "item_004"],
+    address: "14 Admiralty Way, Lekki Phase 1, Lagos",
+    whatsappNumber: "+234 801 234 5678",
   },
   {
     id: "disc_002",
@@ -294,6 +318,9 @@ export const discoveryBusinesses: DiscoveryBusiness[] = [
     hours: { open: "07:30", close: "21:00" },
     isOpen: true,
     itemIds: ["item_007", "item_008", "item_009"],
+    address: "23 Ahmadu Bello Way, Victoria Island, Lagos",
+    closedDays: [],
+    whatsappNumber: "+234 705 321 9876",
   },
   {
     id: "disc_003",
@@ -303,6 +330,8 @@ export const discoveryBusinesses: DiscoveryBusiness[] = [
     hours: { open: "09:00", close: "18:00" },
     isOpen: false,
     itemIds: ["item_005", "item_006"],
+    address: "7 Bode Thomas Street, Surulere, Lagos",
+    whatsappNumber: "+234 812 093 4512",
   },
   {
     id: "disc_004",
@@ -312,6 +341,8 @@ export const discoveryBusinesses: DiscoveryBusiness[] = [
     hours: { open: "08:00", close: "19:00" },
     isOpen: true,
     itemIds: ["item_001", "item_003"],
+    address: "45 Akin Adesola Street, Victoria Island, Lagos",
+    whatsappNumber: "+234 909 876 5432",
   },
   {
     id: "disc_005",
@@ -321,6 +352,9 @@ export const discoveryBusinesses: DiscoveryBusiness[] = [
     hours: { open: "10:00", close: "17:00" },
     isOpen: false,
     itemIds: ["item_011", "item_012"],
+    address: "12 Ogui Road, Enugu",
+    closedDays: ["Sun", "Mon"],
+    whatsappNumber: "+234 803 456 7890",
   },
   {
     id: "disc_006",
@@ -330,6 +364,206 @@ export const discoveryBusinesses: DiscoveryBusiness[] = [
     hours: { open: "08:30", close: "20:30" },
     isOpen: true,
     itemIds: ["item_004", "item_005", "item_006"],
+    address: "78 Isaac John Street, GRA Ikeja, Lagos",
+    whatsappNumber: "+234 706 654 3210",
+  },
+  {
+    id: "disc_007",
+    name: "Quick Suds Laundromat",
+    illustrationVariant: "variant-01-white.svg",
+    distanceKm: 1.5,
+    hours: { open: "07:00", close: "20:00" },
+    isOpen: true,
+    itemIds: ["item_001", "item_002"],
+    address: "15 Allen Avenue, Ikeja, Lagos",
+    whatsappNumber: "+234 802 111 2233",
+  },
+  {
+    id: "disc_008",
+    name: "Royal Fold Cleaners",
+    illustrationVariant: "variant-02-coral.svg",
+    distanceKm: 2.8,
+    hours: { open: "08:00", close: "19:00" },
+    isOpen: true,
+    itemIds: ["item_004", "item_005"],
+    address: "22 Herbert Macaulay Way, Yaba, Lagos",
+    whatsappNumber: "+234 813 222 3344",
+  },
+  {
+    id: "disc_009",
+    name: "AquaClean Laundry Hub",
+    illustrationVariant: "variant-03-navy.svg",
+    distanceKm: 0.5,
+    hours: { open: "08:00", close: "21:00" },
+    isOpen: true,
+    itemIds: ["item_001", "item_003", "item_006"],
+    address: "9 Bourdillon Road, Ikoyi, Lagos",
+    whatsappNumber: "+234 705 333 4455",
+  },
+  {
+    id: "disc_010",
+    name: "Neatline Dry Cleaners",
+    illustrationVariant: "variant-04-sage.svg",
+    distanceKm: 3.5,
+    hours: { open: "09:00", close: "18:00" },
+    isOpen: false,
+    itemIds: ["item_005"],
+    address: "31 Adeniran Ogunsanya Street, Surulere, Lagos",
+    whatsappNumber: "+234 909 444 5566",
+  },
+  {
+    id: "disc_011",
+    name: "Fresh & Fold Express",
+    illustrationVariant: "variant-05-mustard.svg",
+    distanceKm: 1.1,
+    hours: { open: "07:30", close: "20:30" },
+    isOpen: true,
+    itemIds: ["item_001", "item_002", "item_007"],
+    address: "5 Admiralty Way, Lekki Phase 1, Lagos",
+    whatsappNumber: "+234 802 555 6677",
+  },
+  {
+    id: "disc_012",
+    name: "Whitewash Laundromat",
+    illustrationVariant: "variant-06-rose.svg",
+    distanceKm: 2.2,
+    hours: { open: "08:00", close: "20:00" },
+    isOpen: true,
+    itemIds: ["item_008", "item_009", "item_010"],
+    address: "17 Ozumba Mbadiwe Avenue, Victoria Island, Lagos",
+    whatsappNumber: "+234 706 666 7788",
+  },
+  {
+    id: "disc_013",
+    name: "Starch & Steam",
+    illustrationVariant: "variant-07-charcoal.svg",
+    distanceKm: 4.0,
+    hours: { open: "08:00", close: "19:00" },
+    isOpen: true,
+    itemIds: ["item_003", "item_004"],
+    address: "62 Oduduwa Way, GRA Ikeja, Lagos",
+    whatsappNumber: "+234 812 777 8899",
+  },
+  {
+    id: "disc_014",
+    name: "CleanCrew Laundromat",
+    illustrationVariant: "variant-08-skyblue.svg",
+    distanceKm: 0.9,
+    hours: { open: "07:00", close: "19:00" },
+    isOpen: false,
+    itemIds: ["item_001", "item_002", "item_012"],
+    address: "8 Herbert Macaulay Way, Yaba, Lagos",
+    whatsappNumber: "+234 803 888 9900",
+  },
+  {
+    id: "disc_015",
+    name: "BlueWave Laundry",
+    illustrationVariant: "variant-09-plum.svg",
+    distanceKm: 6.2,
+    hours: { open: "08:00", close: "20:00" },
+    isOpen: true,
+    itemIds: ["item_007", "item_011", "item_012"],
+    address: "41 Addo Road, Ajah, Lagos",
+    whatsappNumber: "+234 909 999 0011",
+  },
+  {
+    id: "disc_016",
+    name: "Diamond Wash House",
+    illustrationVariant: "variant-01-white.svg",
+    distanceKm: 1.3,
+    hours: { open: "08:00", close: "20:00" },
+    isOpen: true,
+    itemIds: ["item_004", "item_005", "item_006"],
+    address: "27 Admiralty Way, Lekki Phase 1, Lagos",
+    whatsappNumber: "+234 701 123 4567",
+  },
+  {
+    id: "disc_017",
+    name: "SudsMaster Laundry",
+    illustrationVariant: "variant-02-coral.svg",
+    distanceKm: 5.5,
+    hours: { open: "07:00", close: "19:00" },
+    isOpen: true,
+    itemIds: ["item_001", "item_003"],
+    address: "14 Marine Beach Road, Apapa, Lagos",
+    whatsappNumber: "+234 802 234 5678",
+  },
+  {
+    id: "disc_018",
+    name: "PureFold Cleaners",
+    illustrationVariant: "variant-03-navy.svg",
+    distanceKm: 2.6,
+    hours: { open: "08:00", close: "18:00" },
+    isOpen: false,
+    itemIds: ["item_002", "item_008"],
+    address: "33 Diya Street, Gbagada, Lagos",
+    whatsappNumber: "+234 813 345 6789",
+  },
+  {
+    id: "disc_019",
+    name: "Elegance Dry Clean",
+    illustrationVariant: "variant-04-sage.svg",
+    distanceKm: 3.1,
+    hours: { open: "09:00", close: "19:00" },
+    isOpen: true,
+    itemIds: ["item_004", "item_005"],
+    address: "48 Opebi Road, Ikeja, Lagos",
+    whatsappNumber: "+234 705 456 7890",
+  },
+  {
+    id: "disc_020",
+    name: "SpinCycle Laundromat",
+    illustrationVariant: "variant-05-mustard.svg",
+    distanceKm: 1.8,
+    hours: { open: "07:30", close: "20:00" },
+    isOpen: true,
+    itemIds: ["item_001", "item_007", "item_009"],
+    address: "19 Adeniran Ogunsanya Street, Surulere, Lagos",
+    whatsappNumber: "+234 909 567 8901",
+  },
+  {
+    id: "disc_021",
+    name: "Crystal Clean Services",
+    illustrationVariant: "variant-06-rose.svg",
+    distanceKm: 0.6,
+    hours: { open: "08:00", close: "21:00" },
+    isOpen: true,
+    itemIds: ["item_003", "item_006", "item_011"],
+    address: "6 Ahmadu Bello Way, Victoria Island, Lagos",
+    whatsappNumber: "+234 802 678 9012",
+  },
+  {
+    id: "disc_022",
+    name: "Metro Wash & Iron",
+    illustrationVariant: "variant-07-charcoal.svg",
+    distanceKm: 4.8,
+    hours: { open: "08:00", close: "19:00" },
+    isOpen: false,
+    itemIds: ["item_002", "item_003", "item_012"],
+    address: "12 Agege Motor Road, Oshodi, Lagos",
+    whatsappNumber: "+234 706 789 0123",
+  },
+  {
+    id: "disc_023",
+    name: "Palmgrove Laundry Point",
+    illustrationVariant: "variant-08-skyblue.svg",
+    distanceKm: 2.0,
+    hours: { open: "07:00", close: "20:00" },
+    isOpen: true,
+    itemIds: ["item_001", "item_004", "item_010"],
+    address: "24 Ikorodu Road, Palmgrove, Lagos",
+    whatsappNumber: "+234 812 890 1234",
+  },
+  {
+    id: "disc_024",
+    name: "GreenLeaf Cleaners",
+    illustrationVariant: "variant-09-plum.svg",
+    distanceKm: 3.7,
+    hours: { open: "08:00", close: "19:00" },
+    isOpen: true,
+    itemIds: ["item_005", "item_006", "item_007"],
+    address: "55 Toyin Street, Ikeja, Lagos",
+    whatsappNumber: "+234 803 901 2345",
   },
 ].map(buildDiscoveryBusiness)
 
@@ -875,5 +1109,78 @@ export const notifications: Notification[] = [
     read: true,
     createdAt: daysAgo(20),
     linkTo: "/transactions",
+  },
+]
+
+// ─── Customer order history — mock past orders for the signed-in customer account ──
+
+export const mockCustomerOrders: CustomerOrder[] = [
+  {
+    id: "corder_001",
+    businessId: "disc_001",
+    businessName: "Sparkle Wash & Dry",
+    reference: "LDR-482913",
+    items: [
+      { priceListItemId: "item_001", name: "Plain Shirt", quantity: 3, unitPrice: 800, subtotal: 2400 },
+      { priceListItemId: "item_002", name: "Trousers", quantity: 2, unitPrice: 800, subtotal: 1600 },
+    ],
+    totalAmount: 4000,
+    status: "completed",
+    pickupAddress: "45 Akin Adesola Street, Victoria Island, Lagos",
+    createdAt: d(2, 10, 0),
+  },
+  {
+    id: "corder_002",
+    businessId: "disc_002",
+    businessName: "CleanSheen Laundry",
+    reference: "LDR-719204",
+    items: [
+      { priceListItemId: "item_008", name: "Bed Sheet (King)", quantity: 1, unitPrice: 3500, subtotal: 3500 },
+      { priceListItemId: "item_009", name: "Duvet (Single)", quantity: 1, unitPrice: 5000, subtotal: 5000 },
+    ],
+    totalAmount: 8500,
+    status: "in_progress",
+    pickupAddress: "12 Bourdillon Road, Ikoyi, Lagos",
+    createdAt: d(5, 14, 30),
+  },
+  {
+    id: "corder_003",
+    businessId: "disc_004",
+    businessName: "Bubbles & Co.",
+    reference: "LDR-350871",
+    items: [
+      { priceListItemId: "item_003", name: "Native Senator", quantity: 1, unitPrice: 2000, subtotal: 2000 },
+    ],
+    totalAmount: 2000,
+    status: "ready",
+    pickupAddress: "45 Akin Adesola Street, Victoria Island, Lagos",
+    createdAt: d(10, 9, 15),
+  },
+  {
+    id: "corder_004",
+    businessId: "disc_003",
+    businessName: "FreshPress Lagos",
+    reference: "LDR-926450",
+    items: [
+      { priceListItemId: "item_005", name: "Suit (complete)", quantity: 1, unitPrice: 4500, subtotal: 4500 },
+      { priceListItemId: "item_006", name: "Gown / Dress", quantity: 1, unitPrice: 2500, subtotal: 2500 },
+    ],
+    totalAmount: 7000,
+    status: "requested",
+    pickupAddress: "7 Bode Thomas Street, Surulere, Lagos",
+    createdAt: d(15, 16, 45),
+  },
+  {
+    id: "corder_005",
+    businessId: "disc_006",
+    businessName: "Marina Wash House",
+    reference: "LDR-138762",
+    items: [
+      { priceListItemId: "item_004", name: "Agbada (complete set)", quantity: 1, unitPrice: 6500, subtotal: 6500 },
+    ],
+    totalAmount: 6500,
+    status: "completed",
+    pickupAddress: "78 Isaac John Street, GRA Ikeja, Lagos",
+    createdAt: d(20, 11, 0),
   },
 ]
