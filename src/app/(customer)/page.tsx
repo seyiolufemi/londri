@@ -10,6 +10,7 @@ import Footer from "@/components/customer/Footer"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useGetDiscoverableBusinessesQuery } from "@/redux/api/businessApi"
+import { useGeolocation } from "@/lib/hooks/useGeolocation"
 
 function BusinessCardSkeleton() {
   return (
@@ -28,6 +29,7 @@ export default function CustomerLandingPage() {
   // Backend already only returns discoverable, verified businesses here.
   const { data: businesses, isLoading } = useGetDiscoverableBusinessesQuery()
   const discoverable = businesses ?? []
+  const { coords: customerCoords } = useGeolocation()
 
   return (
     <div className="min-h-screen overflow-x-clip bg-background">
@@ -154,7 +156,7 @@ export default function CustomerLandingPage() {
             </p>
           ) : (
             discoverable.slice(0, 6).map((business, index) => (
-              <BusinessCard key={business.id} business={business} index={index} />
+              <BusinessCard key={business.id} business={business} index={index} customerCoords={customerCoords} />
             ))
           )}
         </div>

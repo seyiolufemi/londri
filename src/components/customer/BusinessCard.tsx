@@ -3,10 +3,11 @@
 import Link from "next/link"
 import { motion } from "framer-motion"
 import type { DiscoverableBusiness } from "@/redux/api/businessApi"
+import type { GeolocationCoords } from "@/lib/hooks/useGeolocation"
 import {
   SERVICE_TYPE_LABELS,
+  getDistanceKm,
   pickCheapestPrice,
-  pickDistanceKm,
   pickIllustration,
   pickIsOpen,
   pickServiceTypes,
@@ -19,10 +20,11 @@ function formatNaira(amount: number): string {
 interface BusinessCardProps {
   business: DiscoverableBusiness
   index: number
+  customerCoords?: GeolocationCoords | null
 }
 
-export default function BusinessCard({ business, index }: BusinessCardProps) {
-  const distanceKm = pickDistanceKm(business.id)
+export default function BusinessCard({ business, index, customerCoords = null }: BusinessCardProps) {
+  const distanceKm = getDistanceKm(business, customerCoords)
   const isOpen = pickIsOpen(business.id)
   const serviceTypes = pickServiceTypes(business.id)
   const cheapestPrice = pickCheapestPrice(business.id)

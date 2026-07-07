@@ -1,3 +1,4 @@
+import type { GeolocationCoords } from "@/lib/hooks/useGeolocation"
 import type { ServiceType } from "@/types"
 
 export const ALL_SERVICE_TYPES: ServiceType[] = ["wash", "dry_clean", "iron"]
@@ -34,8 +35,47 @@ export function pickIllustration(id: string): string {
   return ILLUSTRATION_VARIANTS[hashSeed(id) % ILLUSTRATION_VARIANTS.length]
 }
 
+// Fallback only — used when we don't have the customer's real location yet
+// (permission denied/unavailable/still loading). Prefer getDistanceKm below.
 export function pickDistanceKm(id: string): number {
   const km = 0.5 + (hashSeed(id + "distance") % 95) / 10
+  return Math.round(km * 10) / 10
+}
+
+function toRadians(deg: number): number {
+  return (deg * Math.PI) / 180
+}
+
+// Great-circle (Haversine) distance between two lat/lng points, in km.
+export function haversineDistanceKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const earthRadiusKm = 6371
+  const dLat = toRadians(lat2 - lat1)
+  const dLon = toRadians(lon2 - lon1)
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLon / 2) ** 2
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return earthRadiusKm * c
+}
+
+// Real distance from the customer's location when available, otherwise the
+// stable per-business fallback.
+export function getDistanceKm(
+  business: { id: string; latitude: number; longitude: number },
+  customerCoords: GeolocationCoords | null
+): number {
+  if (!customerCoords) return pickDistanceKm(business.id)
+  const km = haversineDistanceKm(
+    customerCoords.latitude,
+    customerCoords.longitude,
+    business.latitude,
+    business.longitude
+  )
   return Math.round(km * 10) / 10
 }
 

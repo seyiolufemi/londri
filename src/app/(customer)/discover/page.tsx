@@ -17,7 +17,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useGetDiscoverableBusinessesQuery } from "@/redux/api/businessApi"
-import { ALL_SERVICE_TYPES, SERVICE_TYPE_LABELS, pickCheapestPrice, pickDistanceKm, pickServiceTypes } from "@/components/customer/businessDisplay"
+import { ALL_SERVICE_TYPES, SERVICE_TYPE_LABELS, getDistanceKm, pickCheapestPrice, pickServiceTypes } from "@/components/customer/businessDisplay"
+import { useGeolocation } from "@/lib/hooks/useGeolocation"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { ServiceType } from "@/types"
 
@@ -68,6 +69,8 @@ function DiscoverPageContent() {
     [businesses]
   )
 
+  const { coords: customerCoords } = useGeolocation()
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     const result = discoverable.filter((b) => {
@@ -82,9 +85,9 @@ function DiscoverPageContent() {
     return [...result].sort((a, b) => {
       if (sort === "price_asc") return pickCheapestPrice(a.id) - pickCheapestPrice(b.id)
       if (sort === "price_desc") return pickCheapestPrice(b.id) - pickCheapestPrice(a.id)
-      return pickDistanceKm(a.id) - pickDistanceKm(b.id)
+      return getDistanceKm(a, customerCoords) - getDistanceKm(b, customerCoords)
     })
-  }, [discoverable, search, serviceTypeFilters, sort])
+  }, [discoverable, search, serviceTypeFilters, sort, customerCoords])
 
   // Filters/search/sort reset the loaded batch back to the first page. Adjusted
   // during render (React's recommended pattern for derived resets) rather than
@@ -262,7 +265,12 @@ function DiscoverPageContent() {
           <>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {visibleBusinesses.map((business, index) => (
-                <BusinessCard key={business.id} business={business} index={index % PAGE_SIZE} />
+                <BusinessCard
+                  key={business.id}
+                  business={business}
+                  index={index % PAGE_SIZE}
+                  customerCoords={customerCoords}
+                />
               ))}
             </div>
 
