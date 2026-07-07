@@ -189,20 +189,20 @@ export default function CreateOrderPage() {
     }
 
     try {
-      const { order, checkout_link } = await createOrder(body).unwrap()
+      const { transaction_reference_id, checkout_link } = await createOrder(body).unwrap()
 
       if (paymentMethod === "walk_in" && checkout_link) {
         const digits = normalizeNigerianPhone(customerPhone).replace(/\D/g, "")
-        const message = `Hi ${customerName.trim()}, here's your payment link for order ${order.reference_id}: ${checkout_link}`
+        const message = `Hi ${customerName.trim()}, here's your payment link for order ${transaction_reference_id}: ${checkout_link}`
         window.open(`https://wa.me/${digits}?text=${encodeURIComponent(message)}`, "_blank")
         toast.success("Order created — opening WhatsApp to send the payment link", {
-          description: order.reference_id,
+          description: transaction_reference_id,
         })
       } else if (paymentMethod === "online_booking" && checkout_link) {
         window.open(checkout_link, "_blank")
-        toast.success("Order created — payment link opened", { description: order.reference_id })
+        toast.success("Order created — payment link opened", { description: transaction_reference_id })
       } else {
-        toast.success("Order created successfully", { description: order.reference_id })
+        toast.success("Order created successfully", { description: transaction_reference_id })
       }
 
       router.push("/orders")

@@ -83,8 +83,10 @@ export interface Order {
   status_events: OrderStatusEvent[]
 }
 
+// Real response is flat — no nested order object, just its id (docs showed
+// { order: {...} } but the actual payload only returns order_id).
 export interface CreateOrderResponse {
-  order: Order
+  order_id: string
   transaction_reference_id: string
   checkout_link: string
 }
