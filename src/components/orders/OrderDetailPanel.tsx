@@ -299,6 +299,11 @@ export default function OrderDetailPanel({ orderId }: OrderDetailPanelProps) {
           </p>
         ) : (
           <div className="space-y-2">
+            {order.status === "requested" && (
+              <p className="text-center text-sm text-muted-foreground">
+                Waiting for payment — this order moves to Confirmed automatically once paid.
+              </p>
+            )}
             {mustPayFirst ? (
               <Tooltip>
                 <TooltipTrigger asChild>

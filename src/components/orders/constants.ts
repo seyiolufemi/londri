@@ -40,6 +40,9 @@ export function getOrderSteps(toBeDelivered: boolean): OrderStatus[] {
 }
 
 export function getNextStatus(status: OrderStatus, toBeDelivered: boolean): OrderStatus | null {
+  // requested -> confirmed happens automatically on the backend once payment
+  // clears — the owner has no manual action to trigger it.
+  if (status === "requested") return null
   const steps = getOrderSteps(toBeDelivered)
   const idx = steps.indexOf(status)
   if (idx === -1 || idx === steps.length - 1) return null
